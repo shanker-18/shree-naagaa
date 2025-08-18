@@ -41,6 +41,12 @@ const customStyles = `
   .corporate-blue-gradient {
     background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
   }
+  .animation-delay-300 {
+    animation-delay: 0.3s;
+  }
+  .animation-delay-600 {
+    animation-delay: 0.6s;
+  }
   .fast-moving-label {
     background: linear-gradient(135deg, #991b1b 0%, #dc2626 100%);
     color: white;
@@ -132,7 +138,6 @@ const customStyles = `
 const Homepage: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { profile } = useAuth();
-  // carousel state reserved for future use
 
   // const featuredProducts = [...];
 
@@ -235,7 +240,7 @@ const Homepage: React.FC = () => {
             <div className="flex items-center space-x-4">
               <div className="relative">
                 <img 
-                  src="/logo.jpeg" 
+                  src="/logo.png" 
                   alt="Shree Raga SWAAD GHAR Logo" 
                   className="h-16 w-16 object-contain drop-shadow-lg"
                   onError={(e) => {
@@ -310,13 +315,22 @@ const Homepage: React.FC = () => {
         )}
       </header>
 
-      {/* Demo Mode Banner */}
-      <div className="bg-yellow-400 text-yellow-900 px-4 py-2 text-center text-sm font-medium">
-        {profile && (
-          <span className="ml-2">
-            | Logged in as: {profile.name}
-          </span>
-        )}
+      {/* Animated Discount Badge - Positioned at top right */}
+      <div className="fixed top-20 right-4 z-40 md:right-8 lg:right-12">
+        <div className="relative">
+          {/* Animated oval shape */}
+          <div className="absolute inset-0 bg-red-500 rounded-full animate-ping opacity-25"></div>
+          <div className="relative bg-gradient-to-br from-red-500 to-amber-500 text-white px-6 py-3 rounded-full transform rotate-3 hover:rotate-0 transition-transform duration-300 shadow-lg border-2 border-white animate-pulse">
+            <div className="flex flex-col items-center">
+              <span className="text-xs font-bold tracking-wider animation-delay-300">FREE</span>
+              <span className="text-lg font-extrabold tracking-wider">50g SAMPLE</span>
+              <span className="text-xs font-medium animation-delay-600">for new customers</span>
+              <Link to="/register" className="mt-1 text-xs bg-white text-red-600 px-3 py-0.5 rounded-full font-bold hover:bg-yellow-100 transition-colors">
+                Claim Now
+              </Link>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Hero Section */}
@@ -339,7 +353,7 @@ const Homepage: React.FC = () => {
             className="mb-8 flex justify-center"
           >
             <img 
-              src="/logo.jpeg" 
+              src="/logo.png" 
               alt="Shree Raga SWAAD GHAR Logo" 
               className="h-20 w-20 md:h-24 md:w-24 object-contain drop-shadow-2xl"
               onError={(e) => {
@@ -652,7 +666,7 @@ const Homepage: React.FC = () => {
               <div className="flex justify-center">
                 <div className="w-full max-w-sm h-64 bg-gradient-to-br from-blue-50 to-slate-100 rounded-2xl shadow-lg flex items-center justify-center border border-blue-100">
                   <img
-                    src="/logo.jpeg"
+                    src="/logo.png"
                     alt="Shree Raga SWAAD GHAR Logo"
                     className="h-40 w-40 object-contain drop-shadow-xl"
                     onError={(e) => {

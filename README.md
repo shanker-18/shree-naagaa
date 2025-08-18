@@ -42,9 +42,15 @@ This project is configured for deployment on Render. The deployment uses:
 - Build command: `npm ci && npm run build`
 - Start command: `npm start` (serves static files from `dist` directory)
 
-### Vercel (Alternative)
+### Vercel (Recommended)
 
-The project also includes a `vercel.json` configuration for Vercel deployment.
+The project is configured for deployment on Vercel with the included `vercel.json` file. For detailed deployment instructions, see the [VERCEL_DEPLOYMENT.md](./VERCEL_DEPLOYMENT.md) guide.
+
+Key features of the Vercel deployment:
+- Automatic HTTPS and CDN
+- Serverless functions for the backend API
+- Environment variable management
+- Continuous deployment from Git
 
 ## Service Configuration
 

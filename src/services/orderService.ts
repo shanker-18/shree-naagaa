@@ -3,6 +3,23 @@
 import { v4 as uuidv4 } from 'uuid';
 import { saveOrderToMongoDB, getOrderFromMongoDB, updateOrderStatusInMongoDB } from './mongodb';
 import { sendWarehouseEmail } from './email';
+
+// Function to check if this is a user's first order
+function isFirstTimeOrder(userId: string | null | undefined): boolean {
+  if (!userId) return false;
+  
+  // Check localStorage for previous orders
+  const previousOrders = localStorage.getItem(`orders_${userId}`);
+  if (!previousOrders) return true;
+  
+  try {
+    const orders = JSON.parse(previousOrders);
+    return orders.length === 0;
+  } catch (error) {
+    console.error('Error checking first time order status:', error);
+    return false;
+  }
+}
 // Don't import useDemoContext hook here as it can only be used in React components
 
 // Function to place an order and send warehouse email
@@ -63,6 +80,19 @@ export async function createOrder(orderData: OrderData) {
       // Generate a UUID for the order
       const orderId = uuidv4();
       
+      // Get user state from profile if available
+      let userState = '';
+      if (orderData.user_id) {
+        const savedProfile = localStorage.getItem(`profile_${orderData.user_id}`);
+        if (savedProfile) {
+          const profile = JSON.parse(savedProfile);
+          userState = profile.state || '';
+        }
+      }
+      
+      // Determine delivery time based on state
+      const deliveryDate = userState === 'Tamil Nadu' ? '3-5 days' : '10 days';
+      
       // Format the order data for MongoDB
       const mongoOrderData = {
         order_id: orderId, // Use the generated UUID
@@ -70,14 +100,16 @@ export async function createOrder(orderData: OrderData) {
         guest_name: orderData.guest_name,
         guest_phone: orderData.guest_phone,
         guest_address: orderData.guest_address,
+        state: userState,
         items: orderData.items.map(item => ({
           name: item.product_name,
           qty: item.quantity
         })),
         total_price: orderData.final_amount,
         payment_status: 'Confirmed', // Set to Confirmed as per requirements
-        delivery_date: '3-5 business days', // Set as per requirements
-        status: 'pending' // Initial status
+        delivery_date: deliveryDate, // Set based on state
+        status: 'pending', // Initial status
+        isFirstTimeOrder: isFirstTimeOrder(orderData.user_id)
       };
       
       console.log('Sending order to MongoDB:', mongoOrderData);

@@ -3,6 +3,8 @@ import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Mail, Lock, User, Phone, MapPin, ArrowLeft, UserCheck, Shield, CheckCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { sendEmailVerification } from 'firebase/auth';
+import { auth } from '../lib/firebase';
 
 const Register: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -11,7 +13,8 @@ const Register: React.FC = () => {
     password: '',
     confirmPassword: '',
     phone: '',
-    address: ''
+    address: '',
+    state: ''
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -38,6 +41,7 @@ const Register: React.FC = () => {
     if (!formData.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) { setError('Please enter a valid email address'); setLoading(false); return; }
     if (!formData.phone.trim() || formData.phone.length < 10) { setError('Please enter a valid phone number'); setLoading(false); return; }
     if (!formData.address.trim()) { setError('Address is required'); setLoading(false); return; }
+    if (!formData.state.trim()) { setError('State is required'); setLoading(false); return; }
     if (formData.password !== formData.confirmPassword) { setError('Passwords do not match'); setLoading(false); return; }
     if (formData.password.length < 6) { setError('Password must be at least 6 characters long'); setLoading(false); return; }
 
@@ -48,13 +52,24 @@ const Register: React.FC = () => {
         {
           name: formData.name,
           phone: formData.phone,
-          address: formData.address
+          address: formData.address,
+          state: formData.state
         }
       );
 
       if (!result.success) {
         setError(result.error || 'Registration failed. Please try again.');
       } else {
+        // Send verification email to the new user
+        if (auth.currentUser) {
+          try {
+            await sendEmailVerification(auth.currentUser);
+            console.log('Verification email sent successfully');
+          } catch (verifyError) {
+            console.error('Error sending verification email:', verifyError);
+          }
+        }
+        
         setSuccess(true);
         setTimeout(() => {
           const productInfo = localStorage.getItem('pendingProduct');
@@ -110,7 +125,7 @@ const Register: React.FC = () => {
             </Link>
             <div className="mb-8">
               <div className="flex items-center justify-center mb-6">
-                <img src="/brand-logo.jpeg" alt="Shree Raaga SWAAD GHAR" className="h-16 w-16 rounded-full object-cover shadow-lg" />
+                <img src="/logo.png" alt="Shree Raaga SWAAD GHAR" className="h-16 w-16 rounded-full object-cover shadow-lg" />
                 <div className="ml-4 text-left">
                   <h1 className="text-2xl font-bold text-gray-800">Shree Raaga</h1>
                   <p className="text-sm text-gray-600">SWAAD GHAR</p>
@@ -158,6 +173,55 @@ const Register: React.FC = () => {
                   <MapPin className="absolute left-4 top-3 h-5 w-5 text-gray-400 group-focus-within:text-gray-500 transition-colors" />
                   <textarea id="address" name="address" value={formData.address} onChange={handleInputChange} required rows={3} className="w-full pl-12 pr-4 py-4 bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all duration-300 resize-none text-gray-900 placeholder-gray-400" placeholder="Enter your complete shipping address" />
                 </div>
+              </div>
+
+              {/* State Field */}
+              <div>
+                <label htmlFor="state" className="block text-sm font-semibold text-gray-800 mb-3">State</label>
+                <div className="relative group">
+                  <MapPin className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-gray-500 transition-colors" />
+                  <select 
+                    id="state" 
+                    name="state" 
+                    value={formData.state} 
+                    onChange={handleInputChange} 
+                    required 
+                    className="w-full pl-12 pr-4 py-4 bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all duration-300 text-gray-900"
+                  >
+                    <option value="">Select your state</option>
+                    <option value="Tamil Nadu">Tamil Nadu</option>
+                    <option value="Andhra Pradesh">Andhra Pradesh</option>
+                    <option value="Karnataka">Karnataka</option>
+                    <option value="Kerala">Kerala</option>
+                    <option value="Telangana">Telangana</option>
+                    <option value="Maharashtra">Maharashtra</option>
+                    <option value="Gujarat">Gujarat</option>
+                    <option value="Rajasthan">Rajasthan</option>
+                    <option value="Madhya Pradesh">Madhya Pradesh</option>
+                    <option value="Uttar Pradesh">Uttar Pradesh</option>
+                    <option value="Bihar">Bihar</option>
+                    <option value="West Bengal">West Bengal</option>
+                    <option value="Odisha">Odisha</option>
+                    <option value="Punjab">Punjab</option>
+                    <option value="Haryana">Haryana</option>
+                    <option value="Delhi">Delhi</option>
+                    <option value="Assam">Assam</option>
+                    <option value="Jharkhand">Jharkhand</option>
+                    <option value="Chhattisgarh">Chhattisgarh</option>
+                    <option value="Uttarakhand">Uttarakhand</option>
+                    <option value="Himachal Pradesh">Himachal Pradesh</option>
+                    <option value="Goa">Goa</option>
+                    <option value="Jammu and Kashmir">Jammu and Kashmir</option>
+                    <option value="Manipur">Manipur</option>
+                    <option value="Meghalaya">Meghalaya</option>
+                    <option value="Tripura">Tripura</option>
+                    <option value="Nagaland">Nagaland</option>
+                    <option value="Arunachal Pradesh">Arunachal Pradesh</option>
+                    <option value="Sikkim">Sikkim</option>
+                    <option value="Mizoram">Mizoram</option>
+                  </select>
+                </div>
+                <p className="mt-2 text-sm text-amber-600">* Orders from Tamil Nadu will be delivered in 3-5 days, other states in 10 days</p>
               </div>
 
               {/* Password Field */}

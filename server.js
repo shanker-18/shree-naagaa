@@ -23,7 +23,7 @@ mongoose.connect(mongoUri)
   })
   .catch(err => {
     console.error("❌ MongoDB connection error:", err.message);
-    console.log("⚠️  Using in-memory storage as fallback");
+    console.log("⚠️  MongoDB not available, using in-memory storage"); // Fixed error message
     mongoConnected = false;
   });
 

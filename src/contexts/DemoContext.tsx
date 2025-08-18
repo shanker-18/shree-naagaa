@@ -17,10 +17,13 @@ interface Order {
   guest_name: string;
   guest_phone: string;
   guest_address: string;
+  state?: string;
   items: any[];
   final_amount: number;
   status: 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled';
   created_at: string;
+  isFirstTimeOrder?: boolean;
+  freeSampleIncluded?: boolean;
 }
 
 interface DemoContextType {
@@ -145,18 +148,46 @@ export const DemoProvider: React.FC<DemoProviderProps> = ({ children }) => {
 
   const createOrder = async (orderData: Omit<Order, 'id' | 'created_at' | 'status'>) => {
     try {
+      // Check if this is a first-time order for this user
+      const isFirstTimeOrder = orderData.user_id ? !orders.some(order => order.user_id === orderData.user_id) : false;
+      
+      // Add free sample for first-time orders
+      let orderItems = [...orderData.items];
+      if (isFirstTimeOrder) {
+        // Add the 50g free sample to the order items
+        orderItems.push({
+          product_name: 'Free 50g Sample',
+          quantity: 1,
+          price: 0,
+          total: 0
+        });
+      }
+      
+      // Get user state from profile if available
+      let userState = '';
+      if (orderData.user_id) {
+        const savedProfile = localStorage.getItem(`profile_${orderData.user_id}`);
+        if (savedProfile) {
+          const profile = JSON.parse(savedProfile);
+          userState = profile.state || '';
+        }
+      }
+      
       // Prepare order data for API
       const apiOrderData = {
         user_id: orderData.user_id,
         guest_name: orderData.guest_name,
         guest_phone: orderData.guest_phone,
         guest_address: orderData.guest_address,
-        items: orderData.items.map(item => ({
+        state: userState,
+        items: orderItems.map(item => ({
           name: item.product_name,
           qty: item.quantity
         })),
         total_price: orderData.final_amount,
-        status: 'pending'
+        status: 'pending',
+        isFirstTimeOrder: isFirstTimeOrder,
+        freeSampleIncluded: isFirstTimeOrder
       };
       
       // Send order to backend API
@@ -183,10 +214,13 @@ export const DemoProvider: React.FC<DemoProviderProps> = ({ children }) => {
           guest_name: result.order.guest_name,
           guest_phone: result.order.guest_phone,
           guest_address: result.order.guest_address,
+          state: result.order.state,
           items: result.order.items,
           final_amount: result.order.total_price,
           status: result.order.status,
-          created_at: result.order.created_at || new Date().toISOString()
+          created_at: result.order.created_at || new Date().toISOString(),
+          isFirstTimeOrder: result.order.isFirstTimeOrder,
+          freeSampleIncluded: result.order.freeSampleIncluded
         };
         
         // Update local state with the new order

@@ -7,7 +7,8 @@ import {
   onAuthStateChanged,
   User as FirebaseUser,
   updateProfile as updateFirebaseProfile,
-  browserPopupRedirectResolver
+  browserPopupRedirectResolver,
+  sendEmailVerification
 } from 'firebase/auth';
 import { auth, googleProvider } from '../lib/firebase';
 
@@ -28,6 +29,9 @@ interface UserProfile {
   name: string;
   phone: string;
   address: string;
+  state: string;
+  isFirstTimeOrder?: boolean;
+  emailVerified?: boolean;
 }
 
 interface AuthContextType {
@@ -39,6 +43,7 @@ interface AuthContextType {
   register: (email: string, password: string, userData: Omit<UserProfile, 'id' | 'email'>) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   updateProfile: (data: Partial<Omit<UserProfile, 'id'>>) => Promise<{ success: boolean; error?: string }>;
+  sendVerificationEmail: () => Promise<{ success: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -73,7 +78,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         // Try to get profile from localStorage
         const savedProfile = localStorage.getItem(`profile_${firebaseUser.uid}`);
         if (savedProfile) {
-          setProfile(JSON.parse(savedProfile));
+          const parsedProfile = JSON.parse(savedProfile);
+          // Update email verification status
+          parsedProfile.emailVerified = firebaseUser.emailVerified;
+          setProfile(parsedProfile);
+          // Save updated profile back to localStorage
+          localStorage.setItem(`profile_${firebaseUser.uid}`, JSON.stringify(parsedProfile));
         } else {
           // Create a basic profile
           const newProfile: UserProfile = {
@@ -81,7 +91,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             email: firebaseUser.email || '',
             name: firebaseUser.displayName || '',
             phone: '',
-            address: ''
+            address: '',
+            state: '',
+            emailVerified: firebaseUser.emailVerified
           };
           setProfile(newProfile);
           localStorage.setItem(`profile_${firebaseUser.uid}`, JSON.stringify(newProfile));
@@ -244,8 +256,30 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  const sendVerificationEmail = async () => {
+    try {
+      if (!auth.currentUser) throw new Error('User not authenticated');
+      
+      await sendEmailVerification(auth.currentUser);
+      return { success: true };
+    } catch (error: any) {
+      console.error('Send verification email error:', error.message);
+      return { success: false, error: error.message };
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, profile, loading, login, loginWithGoogle, register, logout, updateProfile }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      profile, 
+      loading, 
+      login, 
+      loginWithGoogle, 
+      register, 
+      logout, 
+      updateProfile,
+      sendVerificationEmail
+    }}>
       {children}
     </AuthContext.Provider>
   );

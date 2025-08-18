@@ -10,6 +10,7 @@ import OrderDetails from './components/OrderDetails';
 import OrderSummary from './components/OrderSummary';
 import ProductDetails from './components/ProductDetails';
 import EmailTest from './components/EmailTest';
+import Profile from './components/Profile';
 import Navbar from './components/Navbar';
 import { AuthProvider } from './contexts/AuthContext';
 import { CartProvider } from './contexts/CartContext';
@@ -30,6 +31,7 @@ function App() {
           <Route path="/order-details" element={<OrderDetails />} />
           <Route path="/order-summary" element={<OrderSummary />} />
           <Route path="/product-details" element={<ProductDetails />} />
+          <Route path="/profile" element={<Profile />} />
           <Route path="/email-test" element={<EmailTest />} />
           {/* EmailJS routes removed */}
         </Routes>

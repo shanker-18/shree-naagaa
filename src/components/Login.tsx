@@ -102,7 +102,7 @@ const Login: React.FC = () => {
             </Link>
             <div className="mb-8">
               <div className="flex items-center justify-center mb-6">
-                <img src="/brand-logo.jpeg" alt="Shree Raaga SWAAD GHAR" className="h-16 w-16 rounded-full object-cover shadow-lg" />
+                <img src="/logo.png" alt="Shree Raaga SWAAD GHAR" className="h-16 w-16 rounded-full object-cover shadow-lg" />
                 <div className="ml-4 text-left">
                   <h1 className="text-2xl font-bold text-gray-800">Shree Raaga</h1>
                   <p className="text-sm text-gray-600">SWAAD GHAR</p>
