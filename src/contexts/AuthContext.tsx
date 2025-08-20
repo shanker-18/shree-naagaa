@@ -48,6 +48,37 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Helper function to check if user is first-time based on order history
+const checkIsFirstTimeOrder = (userId: string): boolean => {
+  if (!userId) return true;
+  
+  // Check localStorage for previous orders from various sources
+  const sources = ['demo_orders', `orders_${userId}`, 'orders'];
+  
+  for (const source of sources) {
+    const ordersData = localStorage.getItem(source);
+    if (ordersData) {
+      try {
+        const orders = JSON.parse(ordersData);
+        if (Array.isArray(orders)) {
+          // Check if user has any orders with this userId or guest orders from this session
+          const userOrders = orders.filter(order => 
+            order.user_id === userId || 
+            (order.id && order.user_id === userId)
+          );
+          if (userOrders.length > 0) {
+            return false; // User has placed orders before
+          }
+        }
+      } catch (error) {
+        console.error('Error checking orders in', source, ':', error);
+      }
+    }
+  }
+  
+  return true; // No orders found, user is first-time
+};
+
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
@@ -81,6 +112,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           const parsedProfile = JSON.parse(savedProfile);
           // Update email verification status
           parsedProfile.emailVerified = firebaseUser.emailVerified;
+          // Check if user is still first-time based on order history
+          parsedProfile.isFirstTimeOrder = checkIsFirstTimeOrder(firebaseUser.uid);
           setProfile(parsedProfile);
           // Save updated profile back to localStorage
           localStorage.setItem(`profile_${firebaseUser.uid}`, JSON.stringify(parsedProfile));
@@ -93,7 +126,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             phone: '',
             address: '',
             state: '',
-            emailVerified: firebaseUser.emailVerified
+            emailVerified: firebaseUser.emailVerified,
+            isFirstTimeOrder: true // New users are always first-time
           };
           setProfile(newProfile);
           localStorage.setItem(`profile_${firebaseUser.uid}`, JSON.stringify(newProfile));

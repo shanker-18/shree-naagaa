@@ -54,7 +54,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSignIn, onGues
                 </div>
                 <div className="text-left">
                   <h3 className="font-semibold text-gray-800 text-lg">Sign In</h3>
-                  <p className="text-sm text-gray-600">Get 1% discount on your order</p>
+                  <p className="text-sm text-gray-600">Access your account and order history</p>
                 </div>
               </div>
             </motion.button>

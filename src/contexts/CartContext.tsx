@@ -2,20 +2,27 @@ import React, { createContext, useContext, useState, ReactNode } from 'react';
 
 interface CartItem {
   id: string;
-  product_name: string;
+  product_name?: string;
+  name?: string; // For compatibility
   category: string;
   price: number;
   quantity: number;
+  image?: string;
+  isSample?: boolean;
 }
 
 interface CartContextType {
   cartItems: CartItem[];
-  addToCart: (item: Omit<CartItem, 'id'>) => void;
+  addToCart: (item: Omit<CartItem, 'id'>, quantity?: number) => void;
   removeFromCart: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
   clearCart: () => void;
   getCartCount: () => number;
   getCartTotal: () => number;
+  getCartSubtotal: () => number;
+  getDiscount: () => number;
+  hasFreeSamples: () => boolean;
+  hasPaidItems: () => boolean;
   isInCart: (productName: string) => boolean;
 }
 
@@ -36,10 +43,14 @@ interface CartProviderProps {
 export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
 
-  const addToCart = (item: Omit<CartItem, 'id'>) => {
+  const addToCart = (item: Omit<CartItem, 'id'>, quantity = 1) => {
+    const itemName = item.name || item.product_name || 'Unknown Item';
     const newItem: CartItem = {
       ...item,
-      id: `${item.product_name}-${Date.now()}`
+      product_name: item.product_name || item.name,
+      name: item.name || item.product_name,
+      quantity: item.quantity || quantity,
+      id: `${itemName}-${Date.now()}`
     };
     
     setCartItems(prev => {
@@ -85,12 +96,40 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     return cartItems.reduce((total, item) => total + item.quantity, 0);
   };
 
-  const getCartTotal = () => {
+  const getCartSubtotal = () => {
     return cartItems.reduce((total, item) => total + (item.price * item.quantity), 0);
   };
 
+  const hasFreeSamples = () => {
+    return cartItems.some(item => item.isSample === true);
+  };
+
+  const hasPaidItems = () => {
+    return cartItems.some(item => !item.isSample && item.price > 0);
+  };
+
+  const getDiscount = () => {
+    // Apply 20% discount if cart has both free samples and paid items
+    if (hasFreeSamples() && hasPaidItems()) {
+      const paidItemsTotal = cartItems
+        .filter(item => !item.isSample)
+        .reduce((total, item) => total + (item.price * item.quantity), 0);
+      return paidItemsTotal * 0.20; // 20% discount
+    }
+    return 0;
+  };
+
+  const getCartTotal = () => {
+    const subtotal = getCartSubtotal();
+    const discount = getDiscount();
+    return Math.max(0, subtotal - discount);
+  };
+
   const isInCart = (productName: string) => {
-    return cartItems.some(item => item.product_name === productName);
+    return cartItems.some(item => 
+      item.product_name === productName || 
+      item.name === productName
+    );
   };
 
   const value: CartContextType = {
@@ -101,6 +140,10 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     clearCart,
     getCartCount,
     getCartTotal,
+    getCartSubtotal,
+    getDiscount,
+    hasFreeSamples,
+    hasPaidItems,
     isInCart
   };
 

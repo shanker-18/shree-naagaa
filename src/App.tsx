@@ -11,6 +11,7 @@ import OrderSummary from './components/OrderSummary';
 import ProductDetails from './components/ProductDetails';
 import EmailTest from './components/EmailTest';
 import Profile from './components/Profile';
+import FreeSamplesPage from './components/FreeSamplesPage';
 import Navbar from './components/Navbar';
 import { AuthProvider } from './contexts/AuthContext';
 import { CartProvider } from './contexts/CartContext';
@@ -25,6 +26,7 @@ function App() {
           <Route path="/" element={<Homepage />} />
           <Route path="/categories" element={<Categories />} />
           <Route path="/category/:categoryName" element={<CategoryPage />} />
+          <Route path="/free-samples" element={<FreeSamplesPage />} />
           <Route path="/cart" element={<CartPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />

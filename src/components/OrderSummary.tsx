@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useDemoContext } from '../contexts/DemoContext';
 import { v4 as uuidv4 } from 'uuid';
 import { sendWarehouseEmail } from '../services/email';
+import { API_ENDPOINTS } from '../config/api';
 // Remove EmailJS import as it's now handled by the backend
 
 const OrderSummary: React.FC = () => {
@@ -67,7 +68,7 @@ const OrderSummary: React.FC = () => {
       // import { sendWarehouseEmail, sendCustomerEmail } from '../services/email';
       
       // Send order directly to backend API
-      const response = await fetch('http://localhost:5001/api/orders', {
+      const response = await fetch(API_ENDPOINTS.ORDERS, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

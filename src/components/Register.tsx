@@ -14,6 +14,7 @@ const Register: React.FC = () => {
     confirmPassword: '',
     phone: '',
     address: '',
+    city: '',
     state: ''
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -24,7 +25,7 @@ const Register: React.FC = () => {
   const navigate = useNavigate();
   const { register } = useAuth();
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
@@ -41,6 +42,7 @@ const Register: React.FC = () => {
     if (!formData.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) { setError('Please enter a valid email address'); setLoading(false); return; }
     if (!formData.phone.trim() || formData.phone.length < 10) { setError('Please enter a valid phone number'); setLoading(false); return; }
     if (!formData.address.trim()) { setError('Address is required'); setLoading(false); return; }
+    if (!formData.city.trim()) { setError('City is required'); setLoading(false); return; }
     if (!formData.state.trim()) { setError('State is required'); setLoading(false); return; }
     if (formData.password !== formData.confirmPassword) { setError('Passwords do not match'); setLoading(false); return; }
     if (formData.password.length < 6) { setError('Password must be at least 6 characters long'); setLoading(false); return; }
@@ -73,17 +75,25 @@ const Register: React.FC = () => {
         setSuccess(true);
         setTimeout(() => {
           const productInfo = localStorage.getItem('pendingProduct');
-          let redirectState = { isAuthenticated: true };
           if (productInfo) {
             try {
               const product = JSON.parse(productInfo);
-              redirectState = { ...redirectState, productName: product.name, category: product.category, price: product.price };
+              const redirectState = { 
+                isAuthenticated: true, 
+                productName: product.name, 
+                category: product.category, 
+                price: product.price 
+              };
               localStorage.removeItem('pendingProduct');
+              navigate('/order-details', { state: redirectState });
             } catch (error) {
               console.error('Error parsing pending product:', error);
+              navigate('/');
             }
-          }
-          navigate('/order-details', { state: redirectState });
+            } else {
+              // No pending product, redirect to categories page
+              navigate('/#categories');
+            }
         }, 1200);
       }
     } catch {
@@ -172,6 +182,15 @@ const Register: React.FC = () => {
                 <div className="relative group">
                   <MapPin className="absolute left-4 top-3 h-5 w-5 text-gray-400 group-focus-within:text-gray-500 transition-colors" />
                   <textarea id="address" name="address" value={formData.address} onChange={handleInputChange} required rows={3} className="w-full pl-12 pr-4 py-4 bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all duration-300 resize-none text-gray-900 placeholder-gray-400" placeholder="Enter your complete shipping address" />
+                </div>
+              </div>
+
+              {/* City Field */}
+              <div>
+                <label htmlFor="city" className="block text-sm font-semibold text-gray-800 mb-3">City</label>
+                <div className="relative group">
+                  <MapPin className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-gray-500 transition-colors" />
+                  <input id="city" name="city" type="text" value={formData.city} onChange={handleInputChange} required className="w-full pl-12 pr-4 py-4 bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all duration-300 text-gray-900 placeholder-gray-400" placeholder="Enter your city" />
                 </div>
               </div>
 

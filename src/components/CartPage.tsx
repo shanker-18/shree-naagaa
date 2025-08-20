@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
-import { Trash2, Plus, Minus, ShoppingBag, ArrowLeft, Package } from 'lucide-react';
+import { Trash2, Plus, Minus, ShoppingBag, ArrowLeft, Package, Gift, Sparkles } from 'lucide-react';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 
 const CartPage: React.FC = () => {
-  const { cartItems, removeFromCart, updateQuantity, getCartTotal, clearCart } = useCart();
+  const { cartItems, removeFromCart, updateQuantity, getCartTotal, getCartSubtotal, getDiscount, hasFreeSamples, hasPaidItems, clearCart } = useCart();
   const { profile } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -190,19 +190,37 @@ const CartPage: React.FC = () => {
             <div className="bg-white rounded-2xl shadow-lg p-6 sticky top-24">
               <h2 className="text-xl font-bold text-gray-800 mb-6">Order Summary</h2>
               
+              {/* Sample Offer Banner */}
+              {hasFreeSamples() && hasPaidItems() && (
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-4 mb-6">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Gift className="h-5 w-5 text-green-600" />
+                    <h3 className="font-semibold text-green-800">🎉 Sample Discount Applied!</h3>
+                  </div>
+                  <p className="text-green-700 text-sm">
+                    You're getting <span className="font-bold">20% off</span> on paid items because you have free samples in your cart!
+                  </p>
+                </div>
+              )}
+
               <div className="space-y-4 mb-6">
                 <div className="flex justify-between text-gray-600">
                   <span>Subtotal ({cartItems.length} items)</span>
-                  <span>₹{getCartTotal()}</span>
+                  <span>₹{getCartSubtotal()}</span>
                 </div>
-                <div className="flex justify-between text-gray-600">
-                  <span>Discount</span>
-                  <span className="text-green-600">-₹0</span>
-                </div>
+                {getDiscount() > 0 && (
+                  <div className="flex justify-between text-green-600">
+                    <div className="flex items-center gap-1">
+                      <Sparkles className="h-4 w-4" />
+                      <span>Sample Discount (20%)</span>
+                    </div>
+                    <span>-₹{getDiscount().toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="border-t pt-4">
                   <div className="flex justify-between text-lg font-bold text-gray-800">
                     <span>Total</span>
-                    <span>₹{getCartTotal()}</span>
+                    <span>₹{getCartTotal().toFixed(2)}</span>
                   </div>
                 </div>
               </div>

@@ -3,6 +3,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { saveOrderToMongoDB, getOrderFromMongoDB, updateOrderStatusInMongoDB } from './mongodb';
 import { sendWarehouseEmail } from './email';
+import { API_ENDPOINTS } from '../config/api';
 
 // Function to check if this is a user's first order
 function isFirstTimeOrder(userId: string | null | undefined): boolean {
@@ -26,7 +27,7 @@ function isFirstTimeOrder(userId: string | null | undefined): boolean {
 export const placeOrder = async (order: any) => {
   try {
     // save order to MongoDB (API call)
-    const response = await fetch("/api/orders", {
+    const response = await fetch(API_ENDPOINTS.ORDERS, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(order),
@@ -139,8 +140,29 @@ export async function createOrder(orderData: OrderData) {
           backend_saved: true
         });
         
-        // Optionally fetch the saved order from MongoDB to sync with context
-        // This could be implemented here if needed
+        // Send email notification for the order
+        try {
+          const emailOrder = {
+            id: savedOrderId,
+            customerName: orderData.guest_name,
+            customerPhone: orderData.guest_phone,
+            customerAddress: orderData.guest_address,
+            items: orderData.items.map((item) => ({
+              name: item.product_name,
+              qty: item.quantity
+            })),
+            totalPrice: `₹${orderData.final_amount}`,
+            paymentStatus: 'Confirmed',
+            deliveryDate: mongoOrderData.delivery_date
+          };
+          
+          console.log('Sending email notification for order:', savedOrderId);
+          await sendWarehouseEmail(emailOrder);
+          console.log('Email notification sent successfully');
+        } catch (emailError) {
+          console.error('Failed to send email notification:', emailError);
+          // Don't fail the order creation if email fails
+        }
         
         return { success: true, orderId: savedOrderId, mongoDbId };
       } else {

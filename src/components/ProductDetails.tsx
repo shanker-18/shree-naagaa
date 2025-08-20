@@ -34,10 +34,28 @@ const ProductDetails: React.FC<ProductDetailsProps> = () => {
   };
 
   const handleBuyNow = () => {
-    if (!isInCart(name)) {
-      addToCart({ product_name: name, category, price, quantity: 1 });
-    }
-    navigate('/cart');
+    // Navigate directly to order details with product information
+    navigate('/order-details', {
+      state: {
+        productName: name,
+        category,
+        price,
+        items: [{
+          product_name: name,
+          quantity: 1,
+          price,
+          category
+        }],
+        total_amount: price,
+        discount_amount: 0,
+        final_amount: price,
+        isFromBuyNow: true
+      }
+    });
+  };
+
+  const handleContinueShopping = () => {
+    navigate('/');
   };
 
   // Determine category color scheme
@@ -135,20 +153,11 @@ const ProductDetails: React.FC<ProductDetailsProps> = () => {
                 </button>
                 
                 <button 
-                  onClick={handleAddToCart}
-                  className={`font-medium py-3 px-6 rounded-lg transition-all duration-300 flex items-center justify-center space-x-2 ${isInCart(name) ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gradient-to-r from-amber-600 to-orange-500 text-white hover:from-amber-700 hover:to-orange-600'}`}
+                  onClick={handleContinueShopping}
+                  className="bg-gradient-to-r from-amber-600 to-orange-500 text-white font-medium py-3 px-6 rounded-lg hover:from-amber-700 hover:to-orange-600 transition-all duration-300 flex items-center justify-center space-x-2"
                 >
-                  {isInCart(name) ? (
-                    <>
-                      <Check className="h-5 w-5" />
-                      <span>Added to Cart</span>
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="h-5 w-5" />
-                      <span>Add to Cart</span>
-                    </>
-                  )}
+                  <Plus className="h-5 w-5" />
+                  <span>Continue Shopping</span>
                 </button>
               </div>
             </div>

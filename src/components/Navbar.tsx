@@ -102,24 +102,24 @@ const Navbar: React.FC = () => {
                         <p className="text-xs text-amber-700">Free 50g sample with your first order</p>
                       </div>
                     </div>
-                    <Link 
-                      to="/categories" 
+                    <a 
+                      href="/#categories" 
                       className="mt-1 text-xs font-medium text-amber-600 hover:text-amber-800 flex items-center justify-end"
                     >
                       Shop now <ChevronRight className="h-3 w-3" />
-                    </Link>
+                    </a>
                   </div>
                 )}
                 
                 <div className="p-1">
                   <Link to="/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md flex items-center gap-2">
                     <User className="h-4 w-4 text-gray-500" />
-                    Profile Settings
+                    User Details
                   </Link>
-                  <Link to="/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md flex items-center gap-2">
+                  <a href="/#categories" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md flex items-center gap-2">
                     <ShoppingBag className="h-4 w-4 text-gray-500" />
-                    My Orders
-                  </Link>
+                    Order Products
+                  </a>
                   <button 
                     onClick={async () => {
                       await logout();

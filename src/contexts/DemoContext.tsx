@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { API_ENDPOINTS } from '../config/api';
 
 // Define types
 interface User {
@@ -79,7 +80,7 @@ export const DemoProvider: React.FC<DemoProviderProps> = ({ children }) => {
   // Fetch orders from the backend API
   const fetchOrdersFromAPI = async () => {
     try {
-      const response = await fetch('http://localhost:5001/api/orders');
+      const response = await fetch(API_ENDPOINTS.ORDERS);
       if (response.ok) {
         const data = await response.json();
         if (data.success && Array.isArray(data.orders)) {
@@ -191,7 +192,7 @@ export const DemoProvider: React.FC<DemoProviderProps> = ({ children }) => {
       };
       
       // Send order to backend API
-      const response = await fetch('http://localhost:5001/api/orders', {
+      const response = await fetch(API_ENDPOINTS.ORDERS, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -245,7 +246,7 @@ export const DemoProvider: React.FC<DemoProviderProps> = ({ children }) => {
       const cleanOrderId = orderId.trim();
       
       // Send status update to backend API
-      const response = await fetch(`http://localhost:5001/api/orders/${cleanOrderId}/status`, {
+      const response = await fetch(`${API_ENDPOINTS.ORDERS}?orderId=${cleanOrderId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json'

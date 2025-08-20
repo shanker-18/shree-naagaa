@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
 import { Link } from 'react-router-dom';
@@ -233,103 +233,27 @@ const Homepage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-100 to-blue-100">
       <style dangerouslySetInnerHTML={{ __html: customStyles }} />
-      {/* Header */}
-      <header className="fixed top-0 w-full enhanced-header shadow-lg z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-4">
-              <div className="relative">
-                <img 
-                  src="/logo.png" 
-                  alt="Shree Raga SWAAD GHAR Logo" 
-                  className="h-16 w-16 object-contain drop-shadow-lg"
-                  onError={(e) => {
-                    // Fallback to icon if logo fails to load
-                    e.currentTarget.style.display = 'none';
-                    e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                  }}
-                />
-                <div className="hidden relative bg-white p-2 rounded-full shadow-lg">
-                  <Leaf className="h-8 w-8 text-green-600" />
-                </div>
-              </div>
-              <div>
-                <span className="text-2xl font-bold corporate-blue tracking-tight">Shree Raaga SWAAD GHAR</span>
-              </div>
-            </div>
-            
-            <nav className="hidden md:flex items-center space-x-8">
-              {['Home', 'Categories', 'About', 'Contact'].map((item) => (
-                <a
-                  key={item}
-                  href={`#${item.toLowerCase()}`}
-                  className="text-red-600 hover:text-red-800 hover:bg-red-50 px-3 py-2 rounded-lg transition-all duration-300 font-semibold"
-                >
-                  {item}
-                </a>
-              ))}
-              <Link to="/cart">
-                <button className="flex items-center space-x-1 bg-gradient-to-r from-red-600 to-red-500 text-white px-4 py-2 rounded-full hover:from-red-700 hover:to-red-600 transition-all duration-300 transform hover:scale-105">
-                  <ShoppingCart className="h-4 w-4" />
-                  <span>Cart</span>
-                </button>
-              </Link>
-            </nav>
 
-            <button
-              className="md:hidden"
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-            >
-              {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-            </button>
-          </div>
-        </div>
-
-        {/* Mobile Menu */}
-        {isMenuOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="md:hidden bg-white border-t"
-          >
-            <div className="px-4 py-2 space-y-2">
-              {['Home', 'Categories', 'About', 'Contact'].map((item) => (
-                                  <a
-                    key={item}
-                    href={`#${item.toLowerCase()}`}
-                    className="block py-3 px-4 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-all duration-300 font-semibold"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    {item}
-                  </a>
-              ))}
-              <Link to="/cart" className="w-full inline-block">
-                <button className="w-full flex items-center justify-center space-x-1 bg-gradient-to-r from-red-600 to-red-500 text-white px-4 py-2 rounded-full">
-                  <ShoppingCart className="h-4 w-4" />
-                  <span>Cart</span>
-                </button>
-              </Link>
-            </div>
-          </motion.div>
-        )}
-      </header>
 
       {/* Animated Discount Badge - Positioned at top right */}
       <div className="fixed top-20 right-4 z-40 md:right-8 lg:right-12">
         <div className="relative">
           {/* Animated oval shape */}
           <div className="absolute inset-0 bg-red-500 rounded-full animate-ping opacity-25"></div>
-          <div className="relative bg-gradient-to-br from-red-500 to-amber-500 text-white px-6 py-3 rounded-full transform rotate-3 hover:rotate-0 transition-transform duration-300 shadow-lg border-2 border-white animate-pulse">
-            <div className="flex flex-col items-center">
-              <span className="text-xs font-bold tracking-wider animation-delay-300">FREE</span>
-              <span className="text-lg font-extrabold tracking-wider">50g SAMPLE</span>
-              <span className="text-xs font-medium animation-delay-600">for new customers</span>
-              <Link to="/register" className="mt-1 text-xs bg-white text-red-600 px-3 py-0.5 rounded-full font-bold hover:bg-yellow-100 transition-colors">
-                Claim Now
-              </Link>
-            </div>
-          </div>
+          <Link to="/free-samples">
+            <button
+              className="relative bg-gradient-to-br from-red-500 to-amber-500 text-white px-6 py-3 rounded-full transform rotate-3 hover:rotate-0 transition-transform duration-300 shadow-lg border-2 border-white animate-pulse"
+            >
+              <div className="flex flex-col items-center">
+                <span className="text-xs font-bold tracking-wider animation-delay-300">FREE</span>
+                <span className="text-lg font-extrabold tracking-wider">SAMPLES</span>
+                <span className="text-xs font-medium animation-delay-600">7 items for free</span>
+                <span className="mt-1 text-xs bg-white text-red-600 px-3 py-0.5 rounded-full font-bold hover:bg-yellow-100 transition-colors">
+                  Claim Now
+                </span>
+              </div>
+            </button>
+          </Link>
         </div>
       </div>
 
@@ -355,15 +279,15 @@ const Homepage: React.FC = () => {
             <img 
               src="/logo.png" 
               alt="Shree Raga SWAAD GHAR Logo" 
-              className="h-20 w-20 md:h-24 md:w-24 object-contain drop-shadow-2xl"
+              className="h-32 w-32 md:h-40 md:w-40 lg:h-48 lg:w-48 object-contain drop-shadow-2xl"
               onError={(e) => {
                 // Fallback to icon if logo fails to load
                 e.currentTarget.style.display = 'none';
                 e.currentTarget.nextElementSibling?.classList.remove('hidden');
               }}
             />
-            <div className="hidden h-20 w-20 md:h-24 md:w-24 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center drop-shadow-2xl">
-              <Leaf className="h-10 w-10 md:h-12 md:w-12 text-green-300" />
+            <div className="hidden h-32 w-32 md:h-40 md:w-40 lg:h-48 lg:w-48 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center drop-shadow-2xl">
+              <Leaf className="h-16 w-16 md:h-20 md:w-20 lg:h-24 lg:w-24 text-green-300" />
             </div>
           </motion.div>
           <motion.h1

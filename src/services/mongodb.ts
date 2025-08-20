@@ -1,7 +1,8 @@
 // MongoDB Data API integration via server-side proxy
+import { API_ENDPOINTS } from '../config/api';
 
 // Configuration for server-side proxy
-const API_BASE_URL = 'http://localhost:5001/api/orders'; // Use the server proxy instead of direct MongoDB API calls
+const API_BASE_URL = API_ENDPOINTS.ORDERS; // Use the server proxy instead of direct MongoDB API calls
 
 // Interface for order data
 interface OrderData {

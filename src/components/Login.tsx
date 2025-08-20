@@ -38,22 +38,25 @@ const Login: React.FC = () => {
         setSuccess(true);
         setTimeout(() => {
           const productInfo = localStorage.getItem('pendingProduct');
-          let redirectState = { isAuthenticated: true };
           if (productInfo) {
             try {
               const product = JSON.parse(productInfo);
-              redirectState = {
-                ...redirectState,
+              const redirectState = {
+                isAuthenticated: true,
                 productName: product.name,
                 category: product.category,
                 price: product.price
               };
               localStorage.removeItem('pendingProduct');
+              navigate('/order-details', { state: redirectState });
             } catch (error) {
               console.error('Error parsing pending product:', error);
+              navigate('/');
             }
+          } else {
+            // No pending product, redirect to categories page
+            navigate('/#categories');
           }
-          navigate('/order-details', { state: redirectState });
         }, 1200);
       }
     } catch {
