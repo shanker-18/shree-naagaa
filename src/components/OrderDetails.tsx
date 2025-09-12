@@ -3,6 +3,8 @@ import { motion } from 'framer-motion';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { User, Phone, MapPin, ShoppingBag, ArrowLeft, CheckCircle, Mail } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useTempSamples } from '../contexts/TempSamplesContext';
+import { useCart } from '../contexts/CartContext';
 import { createOrder } from '../services/orderService';
 
 interface OrderDetailsProps {
@@ -26,10 +28,23 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
   const finalCategory = productInfo.category || category;
   const finalPrice = productInfo.price || price;
   const isFromBuyNow = productInfo.isFromBuyNow || false;
+  const isFromSamples = productInfo.isFromSamples || false;
+  const isFromCart = productInfo.isFromCart || false;
+  const containsSamples = productInfo.containsSamples || false;
   const orderItems = productInfo.items || [];
   const totalAmount = productInfo.total_amount || finalPrice;
   const discountAmount = productInfo.discount_amount || 0;
   const finalAmount = productInfo.final_amount || finalPrice;
+  
+  // Separate items into samples and paid items
+  const sampleItems = orderItems.filter(item => item.isSample || item.price === 0);
+  const paidItems = orderItems.filter(item => !item.isSample && item.price > 0);
+  
+  console.log('🔍 OrderDetails received state:', productInfo);
+  console.log('📦 Items received:', orderItems);
+  console.log('🏷️ isFromBuyNow:', isFromBuyNow, 'isFromSamples:', isFromSamples, 'isFromCart:', isFromCart);
+  console.log('🆓 Sample items:', sampleItems);
+  console.log('💰 Paid items:', paidItems);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -43,7 +58,9 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const { profile } = useAuth();
+  const { profile, updateProfile } = useAuth();
+  const { clearTempSamples, hasTempSamples } = useTempSamples();
+  const { clearCart } = useCart();
 
   // Cities in India
   const indianCities = [
@@ -184,12 +201,12 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
       if (isFromBuyNow && orderItems.length > 0) {
         // Use the values passed from Buy Now flow
         orderTotalAmount = totalAmount;
-        orderDiscountAmount = isAuthenticated ? totalAmount * 0.01 : 0; // 1% discount for authenticated users
+        orderDiscountAmount = 0; // No automatic discount
         orderFinalAmount = orderTotalAmount - orderDiscountAmount;
       } else {
         // Fallback calculation for single product
         orderTotalAmount = finalPrice;
-        orderDiscountAmount = isAuthenticated ? orderTotalAmount * 0.01 : 0;
+        orderDiscountAmount = 0; // No automatic discount
         orderFinalAmount = orderTotalAmount - orderDiscountAmount;
       }
 
@@ -206,7 +223,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
         guest_state: formData.state,
         guest_city: formData.city,
         guest_pincode: formData.pincode,
-        items: isFromBuyNow && orderItems.length > 0 ? orderItems : [
+        items: (isFromBuyNow || isFromSamples || isFromCart) && orderItems.length > 0 ? orderItems : [
           {
             product_name: finalProductName,
             quantity: 1,
@@ -228,6 +245,30 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
       if (!result.success) {
         setError(result.error || 'Failed to create order');
       } else {
+        // Clear cart if this order came from cart
+        if (isFromCart) {
+          console.log('🧹 Clearing cart after successful order');
+          clearCart();
+        }
+        
+        // Clear temporary samples after successful order creation
+        if (hasTempSamples()) {
+          console.log('🧹 Clearing temp samples after successful order');
+          clearTempSamples();
+        }
+        
+        // Mark that user has used free samples if they were included in this order
+        const hasSampleItems = orderData.items.some(item => item.isSample || item.price === 0);
+        if (hasSampleItems && isAuthenticated && profile) {
+          console.log('🎉 User has used free samples - marking as used');
+          await updateProfile({ hasUsedFreeSamples: true });
+        }
+        
+        // Clear other temporary storage items
+        localStorage.removeItem('hasDiscountEligibility');
+        localStorage.removeItem('freeSamplesClaimed');
+        localStorage.removeItem('pendingProduct');
+        
         // Redirect to order summary
         navigate('/order-summary', { 
           state: { 
@@ -268,25 +309,29 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
           animate={{ opacity: 1, y: 0 }}
           className="bg-white rounded-2xl shadow-lg p-6 mb-8 border border-gray-100"
         >
-          {isFromBuyNow && orderItems.length > 0 ? (
-            // Display items from Buy Now flow
+          {(isFromBuyNow || isFromSamples || isFromCart) && orderItems.length > 0 ? (
+            // Display items from Buy Now flow, Free Samples, or Cart
             <div className="space-y-4">
               <div className="flex items-center space-x-4">
                 <div className="p-3 bg-blue-100 rounded-lg">
                   <ShoppingBag className="h-8 w-8 text-blue-600" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900 text-lg">Order Summary</h3>
-                  <p className="text-gray-600 text-sm">{orderItems.length} item(s)</p>
+                  <h3 className="font-semibold text-gray-900 text-lg">
+                    {isFromSamples && !isFromCart ? 'Free Samples Order' : 
+                     containsSamples && isFromCart ? 'Cart Order (with Free Samples)' : 
+                     'Order Summary'}
+                  </h3>
+                  <p className="text-gray-600 text-sm">
+                    {orderItems.length} item(s)
+                    {containsSamples && isFromCart && (
+                      <span className="text-green-600"> - includes {sampleItems.length} free sample(s)</span>
+                    )}
+                  </p>
+                  {isFromSamples && !isFromCart && (
+                    <p className="text-sm text-green-600 font-medium">🎉 Free samples - no payment required!</p>
+                  )}
                 </div>
-                {isAuthenticated && (
-                  <div className="text-right">
-                    <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
-                      <CheckCircle className="h-4 w-4 inline mr-1" />
-                      1% OFF
-                    </div>
-                  </div>
-                )}
               </div>
               {orderItems.map((item, index) => (
                 <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -295,13 +340,21 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                     <p className="text-sm text-gray-600">{item.category}</p>
                     <p className="text-sm text-gray-600">Qty: {item.quantity}</p>
                   </div>
-                  <p className="text-lg font-bold text-blue-600">₹{item.price * item.quantity}</p>
+                  <p className={`text-lg font-bold ${
+                    item.price === 0 ? 'text-green-600' : 'text-blue-600'
+                  }`}>
+                    {item.price === 0 ? 'FREE' : `₹${item.price * item.quantity}`}
+                  </p>
                 </div>
               ))}
               <div className="border-t pt-3 mt-3">
                 <div className="flex justify-between items-center">
                   <span className="text-lg font-semibold text-gray-900">Total:</span>
-                  <span className="text-2xl font-bold text-blue-600">₹{totalAmount}</span>
+                  <span className={`text-2xl font-bold ${
+                    totalAmount === 0 ? 'text-green-600' : 'text-blue-600'
+                  }`}>
+                    {totalAmount === 0 ? 'FREE' : `₹${totalAmount}`}
+                  </span>
                 </div>
               </div>
             </div>
@@ -316,14 +369,6 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                 <p className="text-gray-600 text-sm">{finalCategory}</p>
                 <p className="text-2xl font-bold text-blue-600">₹{finalPrice}</p>
               </div>
-              {isAuthenticated && (
-                <div className="text-right">
-                  <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
-                    <CheckCircle className="h-4 w-4 inline mr-1" />
-                    1% OFF
-                  </div>
-                </div>
-              )}
             </div>
           )}
         </motion.div>

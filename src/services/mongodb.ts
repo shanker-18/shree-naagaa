@@ -1,5 +1,5 @@
 // MongoDB Data API integration via server-side proxy
-import { API_ENDPOINTS } from '../config/api';
+import { API_ENDPOINTS, fetchWithTimeout } from '../config/api';
 
 // Configuration for server-side proxy
 const API_BASE_URL = API_ENDPOINTS.ORDERS; // Use the server proxy instead of direct MongoDB API calls
@@ -33,14 +33,11 @@ export async function saveOrderToMongoDB(orderData: OrderData) {
       orderData.created_at = new Date().toISOString();
     }
 
-    // Make the API request to our server proxy
-    const response = await fetch(API_BASE_URL, {
+    // Make the API request to our server proxy with timeout
+    const response = await fetchWithTimeout(API_BASE_URL, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
       body: JSON.stringify(orderData)
-    });
+    }, 12000);
 
     if (!response.ok) {
       throw new Error(`HTTP error! Status: ${response.status}`);
@@ -74,13 +71,10 @@ export async function saveOrderToMongoDB(orderData: OrderData) {
  */
 export async function getOrderFromMongoDB(orderId: string) {
   try {
-    // Make the API request to our server proxy
-    const response = await fetch(`${API_BASE_URL}/${orderId}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
+    // Make the API request to our server proxy with timeout
+    const response = await fetchWithTimeout(`${API_BASE_URL}?orderId=${orderId}`, {
+      method: 'GET'
+    }, 10000);
 
     if (!response.ok) {
       throw new Error(`HTTP error! Status: ${response.status}`);
@@ -117,14 +111,11 @@ export async function getOrderFromMongoDB(orderId: string) {
  */
 export async function updateOrderStatusInMongoDB(orderId: string, status: string) {
   try {
-    // Make the API request to our server proxy
-    const response = await fetch(`${API_BASE_URL}/${orderId}/status`, {
+    // Make the API request to our server proxy with timeout
+    const response = await fetchWithTimeout(`${API_BASE_URL}?orderId=${orderId}`, {
       method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json'
-      },
       body: JSON.stringify({ status })
-    });
+    }, 10000);
 
     if (!response.ok) {
       throw new Error(`HTTP error! Status: ${response.status}`);

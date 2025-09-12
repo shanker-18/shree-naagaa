@@ -12,8 +12,9 @@ export default function handler(req, res) {
   if (req.method === 'GET') {
     res.status(200).json({
       success: true,
-      message: 'ShreeRaagaSWAADGHAR API is running',
+      message: 'ShreeRaagaSWAADGHAR API is running with Supabase backend',
       timestamp: new Date().toISOString(),
+      database: 'Supabase',
       endpoints: {
         orders: '/api/orders',
         health: '/api'

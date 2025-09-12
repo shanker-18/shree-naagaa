@@ -1,54 +1,112 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Link } from 'react-router-dom';
-import { ArrowLeft, Gift, CheckCircle, ShoppingCart, Package, Crown, Sparkles, Heart, Coffee, X, AlertCircle } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { ArrowLeft, Gift, CheckCircle, ShoppingCart, Package, Crown, Sparkles, Heart, Coffee, X, AlertCircle, ShoppingBag } from 'lucide-react';
 import { useCart } from '../contexts/CartContext';
+import { useAuth } from '../contexts/AuthContext';
+import { useTempSamples } from '../contexts/TempSamplesContext';
+import { createOrder } from '../services/orderService';
 
 const FreeSamplesPage: React.FC = () => {
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [showLimitPopup, setShowLimitPopup] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
   const { addToCart } = useCart();
+  const { profile, updateProfile } = useAuth();
+  const { addTempSamples } = useTempSamples();
+  const fromOffer = location.state?.fromOffer || false;
 
-  // All categories with their items
+  // Check if user has already used free samples
+  useEffect(() => {
+    if (profile?.hasUsedFreeSamples) {
+      // Redirect to home with a message
+      navigate('/', { 
+        state: { 
+          message: 'You have already claimed your free samples offer. Thank you for being a valued customer!' 
+        } 
+      });
+    }
+  }, [profile, navigate]);
+
+  // Comprehensive image mapping for all categories
+  const productImageMap: { pattern: RegExp; src: string; category?: string }[] = [
+    // Powder category - main powders
+    { pattern: /^turmeric.*powder|manjal.*powder/i, src: '/Items/Turmeric Powder.jpeg', category: 'Powder' },
+    { pattern: /^pure.*turmeric.*powder/i, src: '/Items/Pure Turmeric powder.jpeg', category: 'Powder' },
+    { pattern: /^sambar.*powder/i, src: '/Items/Sambar powder.jpeg', category: 'Powder' },
+    { pattern: /^rasam.*powder/i, src: '/Items/Rasam Powder.jpeg', category: 'Powder' },
+    { pattern: /rasam(?!.*powder)/i, src: '/Items/Rasam.jpeg', category: 'Powder' },
+    { pattern: /^ellu.*idli.*powder|^garlic.*idly.*powder/i, src: '/Items/Garlic idlie.jpeg', category: 'Powder' },
+    { pattern: /^poondu.*idly.*powder/i, src: '/Items/Idly Powder.jpeg', category: 'Powder' },
+    { pattern: /^andra.*spl.*paruppu.*powder/i, src: '/Items/Andra Spl.jpeg', category: 'Powder' },
+    { pattern: /^moringa.*leaf.*powder/i, src: '/Items/moringa leaf.jpeg', category: 'Powder' },
+    { pattern: /^curry.*leaves.*powder/i, src: '/Items/currly leaf.jpeg', category: 'Powder' },
+    { pattern: /^vathal.*powder|kollu.*sadha.*powder/i, src: '/Items/Vathal Powder.jpeg', category: 'Powder' },
+    { pattern: /kollu.*sadha.*powder/i, src: '/Items/kollu sadha powder.jpeg', category: 'Powder' },
+    
+    // Mix category
+    { pattern: /^puliodharai.*mix|^puliyotharai.*mix|tamarind.*mix/i, src: '/Items/Puliyotharai (Tamarind) Mix.jpeg', category: 'Mix' },
+    { pattern: /^vathakkuzhambu.*mix|vathal.*kuzhambu.*mix/i, src: '/Items/Vathakkuzhambu Mix.jpeg', category: 'Mix' },
+    { pattern: /puliyo?kuzhambu.*powder/i, src: '/Items/Puliyokuzhambu Powder.jpeg', category: 'Mix' },
+    
+    // Pickle category
+    { pattern: /^poondu.*pickle|^garlic.*pickle/i, src: '/Items/Garlic Pickle.jpeg', category: 'Pickle' },
+    { pattern: /^jathikkai.*pickle|^jadhikkai.*pickle/i, src: '/Items/Jadhikkai Pickle.jpeg', category: 'Pickle' },
+    { pattern: /^mudakatthan.*pickle|^mudakkathan.*pickle/i, src: '/Items/Mudakatthan Pickle.jpeg', category: 'Pickle' },
+  ];
+
+  // Function to get image for any product across all categories
+  const getProductImage = (item: string, categoryTitle: string): string | null => {
+    const lower = item.toLowerCase();
+    const found = productImageMap.find((m) => {
+      // If category is specified in mapping, check category match
+      if (m.category && m.category !== categoryTitle) {
+        return false;
+      }
+      return m.pattern.test(lower);
+    });
+    return found ? found.src : null;
+  };
+
+  // All categories with their items - Updated with new structure
   const categories = [
     {
-      title: 'Powders',
-      icon: Crown,
-      gradient: 'from-red-600 to-rose-500',
-      items: [
-        { id: 'turmeric-powder', name: 'Turmeric Powder' },
-        { id: 'idly-powder', name: 'Idly Powder' },
-        { id: 'milagu-pepper-powder', name: 'Milagu (Pepper) Powder' },
-        { id: 'rasam-powder', name: 'Rasam Powder' },
-        { id: 'jeera-powder', name: 'Jeera Powder' },
-        { id: 'vathal-powder', name: 'Vathal Powder' },
-        { id: 'malli-coriander-powder', name: 'Malli (Coriander) Powder' },
-        { id: 'puliyokuzhambu-powder', name: 'Puliyokuzhambu Powder' }
-      ]
-    },
-    {
-      title: 'Mixes',
+      title: 'Mix',
       icon: Package,
       gradient: 'from-amber-600 to-orange-500',
       items: [
-        { id: 'puliyotharai-mix', name: 'Puliyotharai (Tamarind) Mix' },
-        { id: 'vathakkuzhambu-dried-mix', name: 'Vathakkuzhambu (Dried veg. Gravy)' },
-        { id: 'vathakkuzhambu-mix', name: 'Vathakkuzhambu Mix' }
+        { id: 'puliodharai-mix', name: 'Puliodharai mix' },
+        { id: 'vathakkuzhambu-mix', name: 'Vathakkuzhambu mix' }
       ]
     },
     {
-      title: 'Vathal',
-      icon: Sparkles,
-      gradient: 'from-blue-600 to-indigo-500',
+      title: 'Pickle',
+      icon: Heart,
+      gradient: 'from-purple-600 to-indigo-500',
       items: [
-        { id: 'seeni-avarai-vathal', name: 'Seeni Avarai Vathal' },
-        { id: 'sundakkai-vathal', name: 'Sundakkai Vathal' },
-        { id: 'manathakkali-vathal', name: 'Manathakkali Vathal' },
-        { id: 'mithukku-vathal', name: 'Mithukku Vathal' },
-        { id: 'koozh-vathal', name: 'Koozh Vathal' },
-        { id: 'vendaikkai-vathal', name: 'Vendaikkai Vathal' },
-        { id: 'pagalkkai-vathal', name: 'Pagalkkai Vathal' },
-        { id: 'morr-milagai-vathal', name: 'Morr Milagai Vathal' }
+        { id: 'poondu-pickle', name: 'Poondu pickle' },
+        { id: 'pirandai-pickle', name: 'Pirandai pickle' },
+        { id: 'jathikkai-pickle', name: 'Jathikkai pickle' },
+        { id: 'mudakkathan-pickle', name: 'Mudakkathan pickle' },
+        { id: 'kara-narthangai-pickle', name: 'Kara narthangai pickle' }
+      ]
+    },
+    {
+      title: 'Powder',
+      icon: Crown,
+      gradient: 'from-red-600 to-rose-500',
+      items: [
+        { id: 'turmeric-powder', name: 'Turmeric powder' },
+        { id: 'sambar-powder', name: 'Sambar powder' },
+        { id: 'rasam-powder', name: 'Rasam powder' },
+        { id: 'ellu-idli-powder', name: 'Ellu idli powder' },
+        { id: 'poondu-idly-powder', name: 'Poondu idly powder' },
+        { id: 'andra-spl-paruppu-powder', name: 'Andra spl paruppu powder' },
+        { id: 'moringa-leaf-powder', name: 'Moringa leaf powder' },
+        { id: 'curry-leaves-powder', name: 'Curry leaves powder' },
+        { id: 'red-chilli-powder', name: 'Red Chilli powder' }
       ]
     },
     {
@@ -56,40 +114,17 @@ const FreeSamplesPage: React.FC = () => {
       icon: Gift,
       gradient: 'from-emerald-600 to-green-500',
       items: [
-        { id: 'pai-appalam', name: 'Pai Appalam' },
-        { id: 'kizangu-appalam', name: 'Kizangu Appalam' },
-        { id: 'sovi-appalam', name: 'Sovi Appalam' },
-        { id: 'ulundhu-blackgram-appalam', name: 'Ulundhu (Blackgram) Appalam' },
-        { id: 'arisi-appalam', name: 'Arisi Appalam' },
-        { id: 'garlic-appalam', name: 'Garlic Appalam' },
-        { id: 'ilai-vadaam', name: 'Ilai Vadaam' }
+        { id: 'ulundhu-appalam', name: 'Ulundhu appalam' },
+        { id: 'rice-appalam', name: 'Rice appalam' },
+        { id: 'kizhangu-appalam', name: 'Kizhangu appalam' }
       ]
     },
     {
-      title: 'Pickles',
-      icon: Heart,
-      gradient: 'from-purple-600 to-indigo-500',
-      items: [
-        { id: 'salted-lemon', name: 'Salted Lemon' },
-        { id: 'lemon-pickle', name: 'Lemon Pickle' },
-        { id: 'avakkai-pickle', name: 'Avakkai Pickle' },
-        { id: 'kidarangakai-pickle', name: 'Kidarangakai Pickle' },
-        { id: 'inji-ginger-pickle', name: 'Inji (Ginger) Pickle' },
-        { id: 'mavadu-pickle', name: 'Mavadu Pickle' },
-        { id: 'kovaikkai-pickle', name: 'Kovaikkai Pickle' },
-        { id: 'mudakatthan-pickle', name: 'Mudakatthan Pickle' },
-        { id: 'banana-stem-pickle', name: 'Banana Stem Pickle' },
-        { id: 'kongura-pickle', name: 'Kongura Pickle' }
-      ]
-    },
-    {
-      title: 'Oils',
+      title: 'Coffee',
       icon: Coffee,
       gradient: 'from-yellow-600 to-amber-500',
       items: [
-        { id: 'cekku-groundnut-oil', name: 'Cekku Groundnut Oil' },
-        { id: 'cekku-coconut-oil', name: 'Cekku Coconut Oil' },
-        { id: 'cekku-gingelly-oil', name: 'Cekku Gingelly Oil' }
+        { id: 'coffee-powder', name: 'Coffee powder' }
       ]
     }
   ];
@@ -115,10 +150,9 @@ const FreeSamplesPage: React.FC = () => {
     }
   }, [showLimitPopup]);
 
-  const handleAddToCart = () => {
-    // Add selected free samples to cart
+  const getSelectedItemsForOrder = () => {
+    const items: any[] = [];
     selectedItems.forEach(itemId => {
-      // Find the item in all categories
       let foundItem = null;
       let categoryName = '';
       
@@ -132,20 +166,94 @@ const FreeSamplesPage: React.FC = () => {
       }
       
       if (foundItem) {
-        addToCart({
-          id: `${foundItem.id}-sample`,
-          name: `${foundItem.name} (Free Sample)`,
+        items.push({
+          product_name: `${foundItem.name} (Free Sample)`,
+          quantity: 1,
           price: 0,
-          category: categoryName,
-          image: '/placeholder-product.jpg',
-          isSample: true,
-          quantity: 1
-        }, 1);
+          category: categoryName
+        });
       }
     });
+    return items;
+  };
 
-    // Store in localStorage that user has claimed free samples
+  const handleContinueWithoutProducts = async () => {
+    if (selectedItems.length === 0) return;
+    if (!profile) {
+      // Redirect to login if not authenticated
+      navigate('/login');
+      return;
+    }
+
+    setLoading(true);
+    
+    try {
+      const items = getSelectedItemsForOrder();
+      
+      // Navigate to order details with sample-only order
+      navigate('/order-details', {
+        state: {
+          isAuthenticated: true,
+          items: items,
+          total_amount: 0,
+          discount_amount: 0,
+          final_amount: 0,
+          isFromSamples: true,
+          sampleOnly: true
+        }
+      });
+
+      // Mark offer as used
+      if (fromOffer) {
+        await updateProfile({ hasUsedOffer: true });
+      }
+    } catch (error) {
+      console.error('Error processing sample order:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleContinueWithProducts = () => {
+    if (selectedItems.length === 0) return;
+    
+    // Store samples in temporary storage instead of adding to cart
+    const tempSampleItems = selectedItems.map(itemId => {
+      let foundItem = null;
+      let categoryName = '';
+      
+      for (const category of categories) {
+        const item = category.items.find(i => i.id === itemId);
+        if (item) {
+          foundItem = item;
+          categoryName = category.title;
+          break;
+        }
+      }
+      
+      if (foundItem) {
+        return {
+          id: `${foundItem.id}-sample`,
+          product_name: `${foundItem.name} (Free Sample)`,
+          price: 0,
+          category: categoryName,
+          quantity: 1,
+          isSample: true
+        };
+      }
+      return null;
+    }).filter(item => item !== null);
+
+    // Store samples in temporary storage
+    addTempSamples(tempSampleItems);
+    console.log('🆓 Stored temp samples for later:', tempSampleItems);
+
+    // Set flag for 10% discount eligibility
+    localStorage.setItem('hasDiscountEligibility', 'true');
     localStorage.setItem('freeSamplesClaimed', 'true');
+    
+    // Navigate to categories page (not home page)
+    navigate('/categories');
   };
 
   return (
@@ -172,11 +280,11 @@ const FreeSamplesPage: React.FC = () => {
         </div>
 
         {/* Special Offer Banner */}
-        <div className="bg-gradient-to-r from-red-50 to-amber-50 border border-red-200 rounded-lg p-6 mb-8">
-          <h3 className="font-semibold text-red-800 mb-2 text-center">🎉 Special Offer</h3>
-          <p className="text-red-700 text-center">
-            Select up to 7 free sample items. When you add other products to your cart along with these samples, 
-            you'll get an additional <span className="font-bold">20% discount</span> on your entire order!
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-6 mb-8">
+          <h3 className="font-semibold text-green-800 mb-2 text-center">🎉 Special Offer</h3>
+          <p className="text-green-700 text-center">
+            Select up to 7 free sample items. When you order other products along with these samples, 
+            you'll get an additional <span className="font-bold">10% discount</span> on all products!
           </p>
         </div>
 
@@ -206,7 +314,7 @@ const FreeSamplesPage: React.FC = () => {
                 key={categoryIndex}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: categoryIndex * 0.1 }}
+                transition={{ duration: 0.3, delay: categoryIndex * 0.05 }}
                 className="bg-white rounded-xl shadow-lg overflow-hidden"
               >
                 {/* Category Header */}
@@ -222,7 +330,7 @@ const FreeSamplesPage: React.FC = () => {
 
                 {/* Category Items */}
                 <div className="p-6">
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6">
                     {category.items.map((item) => {
                       const isSelected = selectedItems.includes(item.id);
                       const isDisabled = !isSelected && selectedItems.length >= 7;
@@ -233,34 +341,51 @@ const FreeSamplesPage: React.FC = () => {
                           onClick={() => handleItemToggle(item.id)}
                           disabled={isDisabled}
                           className={`
-                            aspect-square p-3 rounded-xl border-2 text-left transition-all duration-200 relative flex flex-col justify-between
+                            w-full h-56 sm:h-48 p-4 rounded-xl border-2 text-left transition-all duration-200 relative flex flex-col justify-between shadow-lg
                             ${isSelected 
-                              ? 'border-red-500 bg-red-50 text-red-800 shadow-md transform scale-105' 
+                              ? 'border-red-500 bg-red-50 text-red-800 shadow-xl transform scale-105' 
                               : isDisabled 
-                              ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
-                              : 'border-gray-200 hover:border-red-300 hover:bg-red-50 hover:shadow-lg hover:-translate-y-1'
+                              ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed shadow-md'
+                              : 'border-gray-200 hover:border-red-300 hover:bg-red-50 hover:shadow-xl hover:-translate-y-2'
                             }
                           `}
                           whileHover={!isDisabled ? { scale: 1.02 } : {}}
                           whileTap={!isDisabled ? { scale: 0.98 } : {}}
                         >
-                          {/* Product icon placeholder */}
-                          <div className={`w-8 h-8 mx-auto mb-2 rounded-lg flex items-center justify-center ${
-                            isSelected ? 'bg-red-200' : 'bg-gray-100'
-                          }`}>
-                            <Package className={`h-4 w-4 ${
-                              isSelected ? 'text-red-600' : 'text-gray-400'
-                            }`} />
+                          {/* Product Image */}
+                          <div className="w-full h-24 mx-auto mb-3 rounded-lg flex items-center justify-center overflow-hidden">
+                            {(() => {
+                              const imgSrc = getProductImage(item.name, category.title);
+                              
+                              return imgSrc ? (
+                                <img 
+                                  src={imgSrc} 
+                                  alt={item.name} 
+                                  className="max-w-full max-h-full object-contain transform transition-transform duration-300 hover:scale-110"
+                                  style={{
+                                    filter: 'drop-shadow(0 4px 8px rgba(0, 0, 0, 0.15))'
+                                  }}
+                                />
+                              ) : (
+                                <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                                  isSelected ? 'bg-red-200' : 'bg-gray-100'
+                                }`}>
+                                  <Package className={`h-6 w-6 ${
+                                    isSelected ? 'text-red-600' : 'text-gray-400'
+                                  }`} />
+                                </div>
+                              );
+                            })()} 
                           </div>
                           
                           <div className="text-center">
-                            <p className="font-medium text-xs leading-tight mb-1 line-clamp-2">{item.name}</p>
-                            <p className="text-xs text-gray-500">Sample Size</p>
+                            <p className="font-medium text-sm leading-tight mb-2 line-clamp-2">{item.name}</p>
+                            <p className="text-sm text-gray-500 font-medium">Sample Size</p>
                           </div>
                           
                           {isSelected && (
-                            <div className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center shadow-lg">
-                              <CheckCircle className="h-4 w-4 text-white" />
+                            <div className="absolute -top-2 -right-2 w-8 h-8 bg-red-500 rounded-full flex items-center justify-center shadow-xl">
+                              <CheckCircle className="h-5 w-5 text-white" />
                             </div>
                           )}
                         </motion.button>
@@ -275,27 +400,47 @@ const FreeSamplesPage: React.FC = () => {
 
         {/* Action Buttons */}
         <div className="sticky bottom-0 bg-white border-t-2 border-gray-100 p-6 mt-8 -mx-4">
-          <div className="max-w-7xl mx-auto flex gap-4">
-            <Link 
-              to="/"
-              className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-center font-medium"
-            >
-              Continue Shopping
-            </Link>
-            <button
-              onClick={handleAddToCart}
-              disabled={selectedItems.length === 0}
-              className={`
-                flex-2 px-6 py-3 rounded-lg font-semibold flex items-center justify-center gap-2 transition-colors
-                ${selectedItems.length > 0
-                  ? 'bg-gradient-to-r from-red-500 to-amber-500 text-white hover:from-red-600 hover:to-amber-600'
-                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                }
-              `}
-            >
-              <ShoppingCart className="h-5 w-5" />
-              Add {selectedItems.length} Free Samples to Cart
-            </button>
+          <div className="max-w-7xl mx-auto">
+            {/* Instructions */}
+            <div className="text-center mb-4">
+              <p className="text-gray-600 text-sm">
+                Choose what you'd like to do with your selected samples:
+              </p>
+            </div>
+            
+            <div className="flex flex-col sm:flex-row gap-4">
+              {/* Continue without any product */}
+              <button
+                onClick={handleContinueWithoutProducts}
+                disabled={selectedItems.length === 0 || loading}
+                className={`
+                  flex-1 px-6 py-4 rounded-lg font-semibold flex items-center justify-center gap-2 transition-all duration-300
+                  ${selectedItems.length > 0
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-xl transform hover:scale-105'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  }
+                `}
+              >
+                <Gift className="h-5 w-5" />
+                {loading ? 'Processing...' : `Order ${selectedItems.length} Free Samples Only`}
+              </button>
+              
+              {/* Continue to order with products */}
+              <button
+                onClick={handleContinueWithProducts}
+                disabled={selectedItems.length === 0}
+                className={`
+                  flex-1 px-6 py-4 rounded-lg font-semibold flex items-center justify-center gap-2 transition-all duration-300
+                  ${selectedItems.length > 0
+                    ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:from-green-700 hover:to-emerald-700 shadow-lg hover:shadow-xl transform hover:scale-105'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  }
+                `}
+              >
+                <ShoppingBag className="h-5 w-5" />
+                Add Samples + Shop for 10% OFF
+              </button>
+            </div>
           </div>
         </div>
       </div>

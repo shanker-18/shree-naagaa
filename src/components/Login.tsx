@@ -54,8 +54,8 @@ const Login: React.FC = () => {
               navigate('/');
             }
           } else {
-            // No pending product, redirect to categories page
-            navigate('/#categories');
+            // No pending product, redirect to home page
+            navigate('/');
           }
         }, 1200);
       }
@@ -75,7 +75,7 @@ const Login: React.FC = () => {
               <CheckCircle className="h-10 w-10 text-white" />
             </div>
             <h1 className="text-3xl font-bold text-gray-800 mb-4">Welcome Back!</h1>
-            <p className="text-gray-600 mb-6">Redirecting you to complete your order...</p>
+            <p className="text-gray-600 mb-6">{localStorage.getItem('pendingProduct') ? 'Redirecting you to complete your order...' : 'Redirecting you to home page...'}</p>
             <div className="animate-pulse">
               <div className="h-2 bg-emerald-200 rounded-full mb-2"></div>
               <div className="h-2 bg-emerald-200 rounded-full w-3/4 mx-auto"></div>

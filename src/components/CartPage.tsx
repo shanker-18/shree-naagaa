@@ -25,14 +25,22 @@ const CartPage: React.FC = () => {
         product_name: item.product_name,
         quantity: item.quantity,
         price: item.price,
-        category: item.category
+        category: item.category,
+        isSample: item.isSample || false // Preserve sample flag
       }));
+
+      // Check if cart contains free samples
+      const hasSamples = cartItems.some(item => item.isSample || item.price === 0);
 
       const totalAmount = getCartTotal();
       const discountAmount = 0; // You can add discount logic here
       const finalAmount = totalAmount - discountAmount;
 
-      // Navigate to order details with cart data
+      console.log('📦 Cart checkout - items:', orderItems);
+      console.log('🆓 Has samples:', hasSamples);
+
+      // For authenticated users, go directly to order details
+      // For guests, the OrderDetails component will handle the flow
       navigate('/order-details', {
         state: {
           isAuthenticated: !!profile,
@@ -40,7 +48,9 @@ const CartPage: React.FC = () => {
           total_amount: totalAmount,
           discount_amount: discountAmount,
           final_amount: finalAmount,
-          isFromCart: true
+          isFromCart: true,
+          isFromSamples: hasSamples, // Add this flag
+          containsSamples: hasSamples // Additional flag for clarity
         }
       });
     }, 1000);

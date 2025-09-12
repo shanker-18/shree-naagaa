@@ -90,7 +90,26 @@ const OrderSummary: React.FC = () => {
         
         // Send warehouse email using EmailJS
         try {
-          await sendWarehouseEmail({
+          console.log('📋 Original order data for email:', JSON.stringify(orderData, null, 2));
+          console.log('📦 Order payload for email:', JSON.stringify(orderPayload, null, 2));
+          
+          // Debug: Check the actual items structure
+          console.log('🔍 Items analysis:');
+          console.log('  orderData.items:', orderData.items);
+          console.log('  orderPayload.items:', orderPayload.items);
+          
+          if (orderPayload.items && orderPayload.items.length > 0) {
+            orderPayload.items.forEach((item, index) => {
+              console.log(`  Item ${index + 1}:`, {
+                name: item.name,
+                qty: item.qty,
+                price: item.price,
+                originalItem: orderData.items[index]
+              });
+            });
+          }
+          
+          const emailOrderData = {
             id: newOrderId,
             customerName: orderPayload.guest_name,
             customerPhone: orderPayload.guest_phone,
@@ -99,7 +118,11 @@ const OrderSummary: React.FC = () => {
             totalPrice: orderPayload.total_price,
             paymentStatus: orderPayload.payment_status,
             deliveryDate: orderPayload.delivery_date,
-          });
+          };
+          
+          console.log('📧 Final email data being sent:', JSON.stringify(emailOrderData, null, 2));
+          
+          await sendWarehouseEmail(emailOrderData);
         } catch (emailErr) {
           console.error('❌ Error sending client-side email notifications:', emailErr);
         }

@@ -109,12 +109,12 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
   };
 
   const getDiscount = () => {
-    // Apply 20% discount if cart has both free samples and paid items
+    // Apply 10% discount if cart has both free samples and paid items
     if (hasFreeSamples() && hasPaidItems()) {
       const paidItemsTotal = cartItems
         .filter(item => !item.isSample)
         .reduce((total, item) => total + (item.price * item.quantity), 0);
-      return paidItemsTotal * 0.20; // 20% discount
+      return paidItemsTotal * 0.10; // 10% discount
     }
     return 0;
   };

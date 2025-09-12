@@ -15,29 +15,32 @@ import FreeSamplesPage from './components/FreeSamplesPage';
 import Navbar from './components/Navbar';
 import { AuthProvider } from './contexts/AuthContext';
 import { CartProvider } from './contexts/CartContext';
+import { TempSamplesProvider } from './contexts/TempSamplesContext';
 
 function App() {
   return (
     <AuthProvider>
       <CartProvider>
-        <Navbar />
-        <div className="pt-16">
-        <Routes>
-          <Route path="/" element={<Homepage />} />
-          <Route path="/categories" element={<Categories />} />
-          <Route path="/category/:categoryName" element={<CategoryPage />} />
-          <Route path="/free-samples" element={<FreeSamplesPage />} />
-          <Route path="/cart" element={<CartPage />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/order-details" element={<OrderDetails />} />
-          <Route path="/order-summary" element={<OrderSummary />} />
-          <Route path="/product-details" element={<ProductDetails />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/email-test" element={<EmailTest />} />
-          {/* EmailJS routes removed */}
-        </Routes>
-        </div>
+        <TempSamplesProvider>
+          <Navbar />
+          <div className="pt-16">
+          <Routes>
+            <Route path="/" element={<Homepage />} />
+            <Route path="/categories" element={<Categories />} />
+            <Route path="/category/:slug" element={<CategoryPage />} />
+            <Route path="/free-samples" element={<FreeSamplesPage />} />
+            <Route path="/cart" element={<CartPage />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/order-details" element={<OrderDetails />} />
+            <Route path="/order-summary" element={<OrderSummary />} />
+            <Route path="/product-details" element={<ProductDetails />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/email-test" element={<EmailTest />} />
+            {/* EmailJS routes removed */}
+          </Routes>
+          </div>
+        </TempSamplesProvider>
       </CartProvider>
     </AuthProvider>
   );

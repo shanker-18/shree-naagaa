@@ -61,7 +61,7 @@ export const DemoProvider: React.FC<DemoProviderProps> = ({ children }) => {
   useEffect(() => {
     // Always use demo mode since backend is removed
     setIsDemo(true);
-    // Load demo data from MongoDB
+    // Load demo data from Supabase
     const loadData = async () => {
       await loadUserData();
       await fetchOrdersFromAPI();
@@ -84,10 +84,10 @@ export const DemoProvider: React.FC<DemoProviderProps> = ({ children }) => {
       if (response.ok) {
         const data = await response.json();
         if (data.success && Array.isArray(data.orders)) {
-          // Transform MongoDB orders to match our Order interface
+          // Transform Supabase orders to match our Order interface
           const formattedOrders = data.orders.map((order: any) => ({
-            id: order.order_id || order._id,
-            order_id: order._id,
+            id: order.order_id || order.id,
+            order_id: order.order_id,
             user_id: order.user_id,
             guest_name: order.guest_name,
             guest_phone: order.guest_phone,
@@ -98,7 +98,7 @@ export const DemoProvider: React.FC<DemoProviderProps> = ({ children }) => {
             created_at: order.created_at || new Date().toISOString()
           }));
           setOrders(formattedOrders);
-          console.log(`Loaded ${formattedOrders.length} orders from MongoDB API`);
+          console.log(`Loaded ${formattedOrders.length} orders from Supabase API`);
         }
       } else {
         console.error('Failed to fetch orders from API');
@@ -210,7 +210,7 @@ export const DemoProvider: React.FC<DemoProviderProps> = ({ children }) => {
         // Create a new order object from the API response
         const newOrder: Order = {
           id: result.order.order_id,
-          order_id: result.order._id,
+          order_id: result.order.order_id, // Supabase uses order_id consistently
           user_id: result.order.user_id,
           guest_name: result.order.guest_name,
           guest_phone: result.order.guest_phone,
@@ -226,7 +226,7 @@ export const DemoProvider: React.FC<DemoProviderProps> = ({ children }) => {
         
         // Update local state with the new order
         setOrders([...orders, newOrder]);
-        console.log('Order created in MongoDB:', newOrder.id);
+        console.log('Order created in Supabase:', newOrder.id);
         
         return { success: true, orderId: newOrder.id };
       } else {
@@ -270,7 +270,7 @@ export const DemoProvider: React.FC<DemoProviderProps> = ({ children }) => {
         });
         
         setOrders(updatedOrders);
-        console.log('Order status updated in MongoDB:', cleanOrderId);
+        console.log('Order status updated in Supabase:', cleanOrderId);
         
         return { success: true };
       } else {

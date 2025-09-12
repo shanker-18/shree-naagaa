@@ -24,6 +24,39 @@ export const API_ENDPOINTS = {
   HEALTH: `${API_BASE_URL}/api`
 };
 
+// API utility functions with better error handling
+export const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeoutMs = 15000) => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+      }
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    return response;
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+    
+    if (error.name === 'AbortError') {
+      throw new Error('Request timeout - API is taking too long to respond');
+    }
+    
+    throw error;
+  }
+};
+
 // For development and debugging
 console.log('API Configuration:', {
   mode: import.meta.env.MODE,

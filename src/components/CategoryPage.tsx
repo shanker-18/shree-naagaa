@@ -1,10 +1,16 @@
 import React, { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ChevronRight, ShoppingCart, Plus, Check } from 'lucide-react';
+import { ChevronRight, ShoppingCart, Plus, Check, ChevronLeft, Expand, X, Minus } from 'lucide-react';
+import { motion } from 'framer-motion';
 import AuthModal from './AuthModal';
 import { useCart } from '../contexts/CartContext';
+import { useAuth } from '../contexts/AuthContext';
+import { useTempSamples } from '../contexts/TempSamplesContext';
+import { categories } from '../data/categories';
+import { toSlug, parseCategorySlug } from '../utils/slugUtils';
 
-export const categories = [
+// Legacy categories kept for reference only
+const legacyCategories = [
   {
     title: "Powders",
     description: "Traditional cooking powders made fresh without additives.",
@@ -114,64 +120,127 @@ export const categories = [
 ];
 
 const CategoryPage: React.FC = () => {
-  const { categoryName } = useParams<{ categoryName: string }>();
+  const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<{ name: string; category: string; price: number; description?: string } | null>(null);
+  const [showProductModal, setShowProductModal] = useState(false);
+  const [modalProduct, setModalProduct] = useState<{ name: string; category: string; price: number; description?: string; image?: string | null } | null>(null);
   const { addToCart, isInCart } = useCart();
+  const { user } = useAuth();
+  const { tempSamples, hasTempSamples } = useTempSamples();
   
-  const toSlug = (input: string): string =>
-    input.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  // Check if user has discount eligibility from free samples
+  const hasDiscountEligibility = localStorage.getItem('hasDiscountEligibility') === 'true';
+  
+  // Debug: Check temp samples on component mount
+  console.log('📱 CategoryPage mounted with temp samples:', { tempSamples, hasSamples: hasTempSamples(), count: tempSamples?.length });
+  
+  // Parse the category slug and find matching category
+  const decodedSlug = slug ? parseCategorySlug(slug) : '';
+  const category = categories.find((c) => toSlug(c.title) === decodedSlug);
 
-  const category = categories.find((c) => toSlug(c.title) === (categoryName || '').toLowerCase());
-
-  // Explicit image mapping for Powder category
-  const powderImageMap: { pattern: RegExp; src: string }[] = [
-    { pattern: /sambar/i, src: '/Items/Sambar powder.jpeg' },
-    { pattern: /red\s*chilli|chilli/i, src: '/Items/Red chilli powder.jpeg' },
-    { pattern: /rasam/i, src: '/Items/Rasam.jpeg' },
-    { pattern: /turmeric|manjal/i, src: '/Items/Pure Turmeric powder.jpeg' },
-    { pattern: /puliyo?kuzhambu|puli\s*kuzhambu/i, src: '/Items/Puliyokuzhambu Powder.jpeg' },
-    { pattern: /moringa|drumstick/i, src: '/Items/moringa leaf.jpeg' },
-    { pattern: /kollu|horse\s*gram/i, src: '/Items/kollu sadha powder.jpeg' },
-    { pattern: /garlic.*idli|poondu.*idli/i, src: '/Items/Garlic idlie.jpeg' },
-    { pattern: /ellu.*idli/i, src: '/Items/Idly Powder.jpeg' },
-    { pattern: /curry\s*leaf|curry\s*leaves/i, src: '/Items/currly leaf.jpeg' },
-    { pattern: /andra\s*spl|andhra/i, src: '/Items/Andra Spl.jpeg' },
-    { pattern: /vathal\s*powder/i, src: '/Items/Vathal Powder.jpeg' },
-    { pattern: /idli|idly/i, src: '/Items/Idly Powder.jpeg' },
+  // Comprehensive image mapping for all categories
+  const productImageMap: { pattern: RegExp; src: string; category?: string }[] = [
+    // Powder category - main powders
+    { pattern: /^turmeric.*powder|manjal.*powder/i, src: '/Items/Turmeric Powder.jpeg', category: 'Powder' },
+    { pattern: /^pure.*turmeric.*powder/i, src: '/Items/Pure Turmeric powder.jpeg', category: 'Powder' },
+    { pattern: /^sambar.*powder/i, src: '/Items/Sambar powder.jpeg', category: 'Powder' },
+    { pattern: /^rasam.*powder/i, src: '/Items/Rasam Powder.jpeg', category: 'Powder' },
+    { pattern: /rasam(?!.*powder)/i, src: '/Items/Rasam.jpeg', category: 'Powder' },
+    { pattern: /^ellu.*idli.*powder|^garlic.*idly.*powder/i, src: '/Items/Garlic idlie.jpeg', category: 'Powder' },
+    { pattern: /^poondu.*idly.*powder/i, src: '/Items/Idly Powder.jpeg', category: 'Powder' },
+    { pattern: /^andra.*spl.*paruppu.*powder/i, src: '/Items/Andra Spl.jpeg', category: 'Powder' },
+    { pattern: /^moringa.*leaf.*powder/i, src: '/Items/moringa leaf.jpeg', category: 'Powder' },
+    { pattern: /^curry.*leaves.*powder/i, src: '/Items/currly leaf.jpeg', category: 'Powder' },
+    { pattern: /^vathal.*powder|kollu.*sadha.*powder/i, src: '/Items/Vathal Powder.jpeg', category: 'Powder' },
+    { pattern: /kollu.*sadha.*powder/i, src: '/Items/kollu sadha powder.jpeg', category: 'Powder' },
+    
+    // Mix category
+    { pattern: /^puliodharai.*mix|^puliyotharai.*mix|tamarind.*mix/i, src: '/Items/Puliyotharai (Tamarind) Mix.jpeg', category: 'Mix' },
+    { pattern: /^vathakkuzhambu.*mix|vathal.*kuzhambu.*mix/i, src: '/Items/Vathakkuzhambu Mix.jpeg', category: 'Mix' },
+    { pattern: /puliyo?kuzhambu.*powder/i, src: '/Items/Puliyokuzhambu Powder.jpeg', category: 'Mix' },
+    
+    // Pickle category
+    { pattern: /^poondu.*pickle|^garlic.*pickle/i, src: '/Items/Garlic Pickle.jpeg', category: 'Pickle' },
+    { pattern: /^jathikkai.*pickle|^jadhikkai.*pickle/i, src: '/Items/Jadhikkai Pickle.jpeg', category: 'Pickle' },
+    { pattern: /^mudakatthan.*pickle|^mudakkathan.*pickle/i, src: '/Items/Mudakatthan Pickle.jpeg', category: 'Pickle' },
   ];
 
-  // Function to exclude specific products from image mapping
-  const excludedProducts = ["Milagu (Pepper) Powder"];
-
-  const getPowderImageForItem = (item: string): string | null => {
-    // Check if the item is in the excluded products list
-    if (excludedProducts.some(excluded => item.includes(excluded))) {
-      return null;
-    }
-    
+  // Function to get image for any product across all categories
+  const getProductImage = (item: string, categoryTitle: string): string | null => {
     const lower = item.toLowerCase();
-    const found = powderImageMap.find((m) => m.pattern.test(lower));
+    const found = productImageMap.find((m) => {
+      // If category is specified in mapping, check category match
+      if (m.category && m.category !== categoryTitle) {
+        return false;
+      }
+      return m.pattern.test(lower);
+    });
     return found ? found.src : null;
   };
 
   const handleBuyNow = (productName: string) => {
-    const defaultPrices: { [key: string]: number } = {
-      'appalam': 150,
-      'vadam': 120,
-      'podi': 200,
-      'herbal': 250,
-      'rice': 180,
-      'oils': 300
-    };
-    const price = defaultPrices[(categoryName || '').toLowerCase()] || 200;
+    console.log('🚀 CategoryPage handleBuyNow called for:', productName);
+    console.log('📊 TempSamples context state:', { tempSamples, hasTempSamples: hasTempSamples(), count: tempSamples?.length });
+    
+    // Use discounted price if eligible, otherwise regular price
+    const originalPrice = 200;
+    const price = hasDiscountEligibility ? 180 : originalPrice;
     // Find the full item string for better description
     const fullItem = category?.items.find(item => getItemTitle(item) === productName) || productName;
     const product = { name: productName, category: category!.title, price, description: getProductDescription(fullItem) };
     setSelectedProduct(product);
-    localStorage.setItem('pendingProduct', JSON.stringify(product));
-    setShowAuthModal(true);
+    
+    // Create current product item
+    const currentProductItem = {
+      product_name: product.name,
+      quantity: 1,
+      price: product.price,
+      category: product.category,
+      isSample: false
+    };
+
+    // Merge temp samples with current product
+    const allItems = hasTempSamples() ? [...tempSamples, currentProductItem] : [currentProductItem];
+    console.log('🛒 CategoryPage merging items:', { tempSamples, currentProduct: currentProductItem, allItems });
+    console.log('🎯 Final merged items count:', allItems.length);
+
+    // Calculate totals (samples are free)
+    const productTotal = product.price;
+    let discountAmount = 0;
+    let finalAmount = productTotal;
+
+    // Apply 10% discount if there are samples
+    if (hasTempSamples() && localStorage.getItem('hasDiscountEligibility') === 'true') {
+      discountAmount = productTotal * 0.1;
+      finalAmount = productTotal - discountAmount;
+    }
+    
+    // Store merged product data for guest checkout
+    localStorage.setItem('pendingProduct', JSON.stringify({ ...product, items: allItems, total_amount: productTotal, discount_amount: discountAmount, final_amount: finalAmount }));
+    
+    // Check if user is already authenticated
+    if (user) {
+      // User is logged in, go directly to order details
+      navigate('/order-details', { 
+        state: { 
+          isAuthenticated: true, 
+          productName: product.name, 
+          category: product.category, 
+          price: product.price,
+          items: allItems,
+          total_amount: productTotal,
+          discount_amount: discountAmount,
+          final_amount: finalAmount,
+          isFromBuyNow: true,
+          hasTempSamples: hasTempSamples()
+        } 
+      });
+    } else {
+      // User is not logged in, show auth modal
+      setShowAuthModal(true);
+    }
   };
   
   const getProductDescription = (productName: string): string => {
@@ -205,19 +274,12 @@ const CategoryPage: React.FC = () => {
   };
   
   const handleProductClick = (productName: string) => {
-    const defaultPrices: { [key: string]: number } = {
-      'appalam': 150,
-      'vadam': 120,
-      'podi': 200,
-      'herbal': 250,
-      'rice': 180,
-      'oils': 300
-    };
-    const price = defaultPrices[(categoryName || '').toLowerCase()] || 200;
+    // Force all products to be ₹200
+    const price = 200;
     
     // Find the full item string from the category items for better description and image matching
     const fullItem = category?.items.find(item => getItemTitle(item) === productName) || productName;
-    const imgSrc = isPowderCategory ? getPowderImageForItem(fullItem) : null;
+    const imgSrc = getProductImage(fullItem, category!.title);
     
     navigate('/product-details', {
       state: {
@@ -233,23 +295,68 @@ const CategoryPage: React.FC = () => {
   };
 
   const handleAddToCart = (productName: string) => {
-    const defaultPrices: { [key: string]: number } = {
-      'appalam': 150,
-      'vadam': 120,
-      'podi': 200,
-      'herbal': 250,
-      'rice': 180,
-      'oils': 300
-    };
-    const price = defaultPrices[(categoryName || '').toLowerCase()] || 200;
+    // Use discounted price if eligible, otherwise regular price
+    const originalPrice = 200;
+    const price = hasDiscountEligibility ? 180 : originalPrice;
     addToCart({ product_name: productName, category: category!.title, price, quantity: 1 });
+  };
+
+  const handleQuickView = (productName: string) => {
+    const originalPrice = 200;
+    const price = hasDiscountEligibility ? 180 : originalPrice;
+    const fullItem = category?.items.find(item => getItemTitle(item) === productName) || productName;
+    const imgSrc = getProductImage(fullItem, category!.title);
+    
+    setModalProduct({
+      name: productName,
+      category: category!.title,
+      price,
+      description: getProductDescription(fullItem),
+      image: imgSrc
+    });
+    setShowProductModal(true);
+  };
+
+  const handleModalBuyNow = () => {
+    if (modalProduct) {
+      setShowProductModal(false);
+      handleBuyNow(modalProduct.name);
+    }
+  };
+
+  const handleModalAddToCart = () => {
+    if (modalProduct) {
+      handleAddToCart(modalProduct.name);
+    }
   };
 
   const handleSignIn = () => { setShowAuthModal(false); navigate('/login'); };
   const handleGuest = () => {
     setShowAuthModal(false);
+    
+    // Get merged product data from localStorage
+    const pendingProduct = JSON.parse(localStorage.getItem('pendingProduct') || '{}');
+    
     if (selectedProduct) {
-      navigate('/order-details', { state: { isAuthenticated: false, productName: selectedProduct.name, category: selectedProduct.category, price: selectedProduct.price } });
+      navigate('/order-details', { 
+        state: { 
+          isAuthenticated: false, 
+          productName: selectedProduct.name, 
+          category: selectedProduct.category, 
+          price: selectedProduct.price,
+          items: pendingProduct.items || [{
+            product_name: selectedProduct.name,
+            quantity: 1,
+            price: selectedProduct.price,
+            category: selectedProduct.category
+          }],
+          total_amount: pendingProduct.total_amount || selectedProduct.price,
+          discount_amount: pendingProduct.discount_amount || 0,
+          final_amount: pendingProduct.final_amount || selectedProduct.price,
+          isFromBuyNow: true,
+          hasTempSamples: hasTempSamples()
+        } 
+      });
     }
   };
 
@@ -268,10 +375,6 @@ const CategoryPage: React.FC = () => {
   }
 
   const isPowderCategory = /podi|powder/i.test(category.title);
-  const [isGridView, setIsGridView] = useState(true);
-  const gridClass = isGridView
-    ? (isPowderCategory ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8' : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8')
-    : 'space-y-4';
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-gray-100 py-16 relative overflow-hidden">
@@ -295,37 +398,11 @@ const CategoryPage: React.FC = () => {
           <div className="relative z-10 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
             <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-3 tracking-tight drop-shadow-sm">{category.title}</h1>
             <p className="text-white/95 text-lg max-w-3xl leading-relaxed">{category.description}</p>
-            <div className="flex items-center gap-2 bg-white/10 rounded-lg p-1 shadow-lg">
-              <button 
-                onClick={() => setIsGridView(true)} 
-                className={`px-4 py-2 rounded-md text-sm font-semibold transition-all duration-300 flex items-center gap-2 ${isGridView 
-                  ? 'bg-white text-gray-800 shadow-md transform scale-105' 
-                  : 'text-white/90 hover:bg-white/20'}`}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                </svg>
-                Grid
-              </button>
-              <button 
-                onClick={() => setIsGridView(false)} 
-                className={`px-4 py-2 rounded-md text-sm font-semibold transition-all duration-300 flex items-center gap-2 ${!isGridView 
-                  ? 'bg-white text-gray-800 shadow-md transform scale-105' 
-                  : 'text-white/90 hover:bg-white/20'}`}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-                List
-              </button>
-            </div>
           </div>
         </div>
         
-        <div className={gridClass}>
+        {/* Modern E-commerce Product Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
           {category.items.map((item, index) => {
             const itemLower = item.toLowerCase();
             const fastMovingList = ['puliodharai mix','vathakkuzhambu mix','poondu pickle','pirandai pickle','jathikkai pickle','mudakkathan pickle','kara narthangai pickle','turmeric powder','sambar powder','rasam powder','ellu idli powder','poondu idli powder','andra spl paruppu powder','moringa leaf powder','curry leaves powder','red chilli powder','ulundhu appalam','rice appalam','kizhangu appalam'];
@@ -335,87 +412,205 @@ const CategoryPage: React.FC = () => {
             const itemTitle = getItemTitle(item);
             
             // Get image based on the full item text for better matching
-            const imgSrc = isPowderCategory ? getPowderImageForItem(item) : null;
-
-            if (!isGridView) {
-              return (
-                <div key={index} className={`bg-white rounded-xl shadow-sm p-4 border ${category.borderColor} hover:shadow-md transition-all duration-300 relative cursor-pointer`} onClick={() => handleProductClick(itemTitle)}>
-                  {isFast && (
-                    <div className="absolute top-3 left-3">
-                      <span className="inline-flex items-center rounded-full bg-gradient-to-r from-red-600 to-rose-500 text-white text-[10px] font-semibold px-2 py-0.5 shadow-sm">Fast Moving</span>
-                    </div>
-                  )}
-
-                  <div className="flex gap-4 items-center">
-                    {imgSrc ? (
-                      <div className={`w-28 h-20 bg-white border ${category.borderColor} rounded-md flex items-center justify-center overflow-hidden`}>
-                        <img src={imgSrc} alt={itemTitle} className="w-full h-full object-contain" />
-                      </div>
-                    ) : (
-                      <div className={`w-28 h-20 bg-gray-50 border border-dashed ${category.borderColor} rounded-md flex items-center justify-center`}>
-                        <span className="text-gray-400 text-xs">No image</span>
-                      </div>
-                    )}
-
-                    <div className="flex-1 min-w-0">
-                      <span className={`${category.textColor} text-base md:text-lg font-semibold leading-snug block`}>{itemTitle}</span>
-                    </div>
-
-                    <div className="w-48 min-w-[12rem] space-y-2">
-                      <button onClick={(e) => { e.stopPropagation(); handleBuyNow(itemTitle); }} className="w-full bg-gradient-to-r from-red-600 to-red-500 text-white font-medium py-2 px-4 rounded-lg hover:from-red-700 hover:to-red-600 transition-all duration-300 text-sm">
-                        Buy Now
-                      </button>
-                      <button onClick={(e) => { e.stopPropagation(); handleAddToCart(itemTitle); }} className={`w-full font-medium py-2 px-4 rounded-lg transition-all duration-300 text-sm ${isInCart(itemTitle) ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gradient-to-r from-amber-600 to-orange-500 text-white hover:from-amber-700 hover:to-orange-600'}`}>
-                        {isInCart(itemTitle) ? 'Added to Cart' : 'Add to Cart'}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            }
+            const imgSrc = getProductImage(item, category.title);
 
             return (
-              <div key={index} className={`bg-white rounded-2xl shadow-md p-6 border ${category.borderColor} hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative cursor-pointer`} onClick={() => handleProductClick(itemTitle)}>
-                {isFast && (
-                  <div className="absolute top-3 left-3">
-                    <span className="inline-flex items-center rounded-full bg-gradient-to-r from-red-600 to-rose-500 text-white text-[10px] font-semibold px-2 py-0.5 shadow-sm">Fast Moving</span>
+              <motion.div 
+                key={index}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: index * 0.05 }}
+                className="bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-200 overflow-hidden transform hover:-translate-y-1"
+              >
+                {/* Product Image Container */}
+                <div className="relative">
+                  {/* Discount Badge */}
+                  <div className="absolute top-3 left-3 z-10">
+                    <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-md shadow-sm">5% off</span>
                   </div>
-                )}
-
-                {imgSrc ? (
-                  <div className={`w-full h-44 md:h-52 bg-white border ${category.borderColor} rounded-lg mb-5 flex items-center justify-center overflow-hidden`}>
-                    <img src={imgSrc} alt={itemTitle} className="w-full h-full object-contain" />
-                  </div>
-                ) : (
-                  <div className={`w-full h-32 bg-gray-50 border border-dashed ${category.borderColor} rounded-lg mb-5 flex items-center justify-center`}>
-                    <span className="text-gray-400 text-xs">Image not available</span>
-                  </div>
-                )}
-
-                <div className="flex items-start gap-3">
-                  <div className={`mt-1 w-2.5 h-2.5 ${category.textColor} rounded-full flex-shrink-0`}></div>
-                  <div className="flex-1">
-                    <span className={`${category.textColor} text-base md:text-lg font-semibold leading-snug block`}>{itemTitle}</span>
-                    <div className={`${category.textColor} h-0.5 w-12 opacity-60 rounded`} style={{ backgroundColor: 'currentColor' }}></div>
+                  
+                  {/* Product Image with angled effect */}
+                  <div className="h-56 sm:h-48 bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-6 overflow-hidden">
+                    {imgSrc ? (
+                      <img 
+                        src={imgSrc} 
+                        alt={itemTitle} 
+                        className="max-w-full max-h-full object-contain transform rotate-3 hover:rotate-0 transition-transform duration-300 hover:scale-110"
+                        style={{
+                          filter: 'drop-shadow(0 6px 12px rgba(0, 0, 0, 0.15))'
+                        }}
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center transform rotate-3">
+                        <span className="text-gray-400 text-sm">No Image</span>
+                      </div>
+                    )}
                   </div>
                 </div>
-
-                <div className="mt-4 space-y-2">
-                  <button onClick={(e) => { e.stopPropagation(); handleBuyNow(itemTitle); }} className="w-full bg-gradient-to-r from-red-600 to-red-500 text-white font-medium py-2 px-4 rounded-lg hover:from-red-700 hover:to-red-600 transition-all duration-300 transform hover:scale-105 flex items-center justify-center space-x-2 text-sm group">
-                    <ShoppingCart className="h-4 w-4" />
-                    <span>Buy Now</span>
-                  </button>
-                  <button onClick={(e) => { e.stopPropagation(); handleAddToCart(itemTitle); }} className={`w-full font-medium py-2 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 flex items-center justify-center space-x-2 text-sm group ${isInCart(itemTitle) ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gradient-to-r from-amber-600 to-orange-500 text-white hover:from-amber-700 hover:to-orange-600'}`}>
-                    {isInCart(itemTitle) ? (<><Check className="h-4 w-4" /><span>Added to Cart</span></>) : (<><Plus className="h-4 w-4" /><span>Add to Cart</span></>)}
-                  </button>
+                
+                {/* Product Details */}
+                <div className="p-5">
+                  {/* Product Name */}
+                  <h3 className="text-gray-800 font-medium text-base mb-4 leading-tight" style={{
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                    minHeight: '3rem'
+                  }}>
+                    {itemTitle}
+                  </h3>
+                  
+                  {/* Price */}
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="text-xl font-bold text-gray-900">
+                      ₹{hasDiscountEligibility ? '180' : '200'}
+                    </span>
+                    {hasDiscountEligibility && (
+                      <span className="text-sm text-gray-500 line-through">₹200</span>
+                    )}
+                  </div>
+                  
+                  {/* Weight Badge */}
+                  <div className="mb-5">
+                    <span className="bg-black text-white text-sm font-medium px-3 py-1.5 rounded-full">200g</span>
+                  </div>
+                  
+                  {/* Action Buttons */}
+                  <div className="flex items-center justify-center gap-4">
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); handleAddToCart(itemTitle); }}
+                      className="w-10 h-10 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors duration-200 shadow-lg hover:shadow-xl"
+                      title="Add to Cart"
+                    >
+                      <Plus className="h-5 w-5" />
+                    </button>
+                    
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); handleQuickView(itemTitle); }}
+                      className="w-10 h-10 bg-red-500 hover:bg-red-600 text-white rounded-lg flex items-center justify-center transition-colors duration-200 shadow-lg hover:shadow-xl"
+                      title="Quick View"
+                    >
+                      <Expand className="h-5 w-5" />
+                    </button>
+                  </div>
                 </div>
-              </div>
+              </motion.div>
             );
           })}
         </div>
       </div>
 
       <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} onSignIn={handleSignIn} onGuest={handleGuest} />
+      
+      {/* Product Details Modal */}
+      {showProductModal && modalProduct && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl"
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b">
+              <h2 className="text-xl font-bold text-gray-900">Product Details</h2>
+              <button 
+                onClick={() => setShowProductModal(false)}
+                className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors duration-200"
+              >
+                <X className="h-5 w-5 text-gray-500" />
+              </button>
+            </div>
+            
+            {/* Modal Content */}
+            <div className="p-6">
+              <div className="grid md:grid-cols-2 gap-6">
+                {/* Product Image */}
+                <div className="bg-gray-50 rounded-xl p-6 flex items-center justify-center h-80">
+                  {modalProduct.image ? (
+                    <img 
+                      src={modalProduct.image} 
+                      alt={modalProduct.name} 
+                      className="max-w-full max-h-full object-contain"
+                    />
+                  ) : (
+                    <div className="text-center text-gray-400">
+                      <div className="w-24 h-24 bg-gray-200 rounded-lg mx-auto mb-4 flex items-center justify-center">
+                        <span className="text-4xl">📦</span>
+                      </div>
+                      <p>No Image Available</p>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Product Info */}
+                <div className="space-y-4">
+                  {/* Discount Badge */}
+                  <div>
+                    <span className="bg-red-500 text-white text-sm font-bold px-3 py-1 rounded-md">5% off</span>
+                  </div>
+                  
+                  {/* Product Name */}
+                  <h3 className="text-2xl font-bold text-gray-900">{modalProduct.name}</h3>
+                  
+                  {/* Category */}
+                  <p className="text-gray-600">{modalProduct.category}</p>
+                  
+                  {/* Price */}
+                  <div className="flex items-center gap-3">
+                    <span className="text-3xl font-bold text-gray-900">
+                      ₹{hasDiscountEligibility ? '180' : '200'}
+                    </span>
+                    {hasDiscountEligibility && (
+                      <span className="text-lg text-gray-500 line-through">₹200</span>
+                    )}
+                  </div>
+                  
+                  {/* Weight */}
+                  <div>
+                    <span className="bg-black text-white text-sm font-medium px-3 py-1 rounded-full">200g</span>
+                  </div>
+                  
+                  {/* Description */}
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-gray-900">Description</h4>
+                    <p className="text-gray-600 leading-relaxed">
+                      {modalProduct.description?.split(': ')[1] || modalProduct.description}
+                    </p>
+                  </div>
+                  
+                  {/* Action Buttons */}
+                  <div className="space-y-3 pt-4">
+                    <button 
+                      onClick={handleModalBuyNow}
+                      className="w-full bg-red-500 hover:bg-red-600 text-white font-medium py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
+                    >
+                      <ShoppingCart className="h-5 w-5" />
+                      <span>Buy Now</span>
+                    </button>
+                    
+                    <button 
+                      onClick={handleModalAddToCart}
+                      className={`w-full font-medium py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2 ${
+                        isInCart(modalProduct.name) 
+                          ? 'bg-green-500 hover:bg-green-600 text-white'
+                          : 'bg-gray-200 hover:bg-gray-300 text-gray-800'
+                      }`}
+                    >
+                      {isInCart(modalProduct.name) ? (
+                        <><Check className="h-5 w-5" /><span>Added to Cart</span></>
+                      ) : (
+                        <><Plus className="h-5 w-5" /><span>Add to Cart</span></>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 };

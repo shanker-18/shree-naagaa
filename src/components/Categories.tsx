@@ -1,14 +1,44 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronRight, Package, ArrowLeft } from 'lucide-react';
+import { categories } from '../data/categories';
+import { toSlug } from '../utils/slugUtils';
 
-// Import the categories data
-import { categories } from './CategoryPage';
-const toSlug = (input: string): string =>
-  input
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '');
+// Extract just the title part (before the colon) from a full item string
+const getItemTitle = (item: string): string => {
+  return item.includes(':') ? item.split(':')[0].trim() : item;
+};
+
+// Comprehensive image mapping for all categories
+const productImageMap: { pattern: RegExp; src: string; category?: string }[] = [
+  // Powders category
+  { pattern: /turmeric|manjal/i, src: '/Items/Turmeric Powder.jpeg', category: 'Powders' },
+  { pattern: /idli|idly/i, src: '/Items/Idly Powder.jpeg', category: 'Powders' },
+  { pattern: /rasam/i, src: '/Items/Rasam Powder.jpeg', category: 'Powders' },
+  { pattern: /puliyo?kuzhambu|puli\s*kuzhambu/i, src: '/Items/Puliyokuzhambu Powder.jpeg', category: 'Powders' },
+  
+  // Mixes category
+  { pattern: /puliyotharai|tamarind.*mix/i, src: '/Items/Puliyotharai (Tamarind) Mix.jpeg', category: 'Mixes' },
+  { pattern: /vathakkuzhambu.*mix|vathal.*kuzhambu.*mix/i, src: '/Items/Vathakkuzhambu Mix.jpeg', category: 'Mixes' },
+  
+  // Pickles category
+  { pattern: /garlic.*pickle|poondu.*pickle/i, src: '/Items/Garlic Pickle.jpeg', category: 'Pickles' },
+  { pattern: /jadhikkai|jathikkai|nutmeg/i, src: '/Items/Jadhikkai Pickle.jpeg', category: 'Pickles' },
+  { pattern: /mudakatthan|mudakkathan/i, src: '/Items/Mudakatthan Pickle.jpeg', category: 'Pickles' },
+];
+
+// Function to get image for any product across all categories
+const getProductImage = (item: string, categoryTitle: string): string | null => {
+  const lower = item.toLowerCase();
+  const found = productImageMap.find((m) => {
+    // If category is specified in mapping, check category match
+    if (m.category && m.category !== categoryTitle) {
+      return false;
+    }
+    return m.pattern.test(lower);
+  });
+  return found ? found.src : null;
+};
 
 const Categories: React.FC = () => {
   return (
@@ -55,19 +85,43 @@ const Categories: React.FC = () => {
                 </div>
               </div>
               
-              {/* Items list */}
+              {/* Product Images Grid */}
               <div className={`${category.bgColor} p-6`}>
-                <ul className="space-y-2">
-                  {category.items.slice(0, 3).map((item, idx) => (
-                    <li key={idx} className="flex items-center">
-                      <div className={`w-2 h-2 ${category.textColor} rounded-full mr-3 flex-shrink-0`}></div>
-                      <span className={`${category.textColor} text-sm font-medium`}>{item}</span>
-                    </li>
-                  ))}
-                </ul>
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  {category.items.slice(0, 4).map((item, idx) => {
+                    const itemTitle = getItemTitle(item);
+                    const imgSrc = getProductImage(item, category.title);
+                    
+                    return (
+                      <div key={idx} className="bg-white rounded-lg border border-gray-200 p-2 hover:shadow-md transition-all duration-200 group">
+                        {imgSrc ? (
+                          <div className="w-full h-20 bg-white border border-gray-100 rounded-md mb-2 flex items-center justify-center overflow-hidden">
+                            <img 
+                              src={imgSrc} 
+                              alt={itemTitle} 
+                              className="max-w-full max-h-full object-contain rounded group-hover:scale-105 transition-transform duration-200"
+                            />
+                          </div>
+                        ) : (
+                          <div className="w-full h-20 bg-gray-50 border border-dashed border-gray-200 rounded-md mb-2 flex items-center justify-center">
+                            <Package className="h-6 w-6 text-gray-300" />
+                          </div>
+                        )}
+                        <p className={`${category.textColor} text-xs font-medium text-center leading-tight`} style={{ 
+                          display: '-webkit-box', 
+                          WebkitLineClamp: 2, 
+                          WebkitBoxOrient: 'vertical', 
+                          overflow: 'hidden' 
+                        }}>
+                          {itemTitle}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
                 
-                {category.items.length > 3 && (
-                  <p className="text-xs text-gray-500 mt-2 italic">+{category.items.length - 3} more items</p>
+                {category.items.length > 4 && (
+                  <p className="text-xs text-gray-500 text-center italic">+{category.items.length - 4} more products</p>
                 )}
                 
                 {/* Action button */}
@@ -108,19 +162,43 @@ const Categories: React.FC = () => {
                 </div>
               </div>
               
-              {/* Items list */}
+              {/* Product Images Grid */}
               <div className={`${category.bgColor} p-6`}>
-                <ul className="space-y-2">
-                  {category.items.slice(0, 3).map((item, idx) => (
-                    <li key={idx} className="flex items-center">
-                      <div className={`w-2 h-2 ${category.textColor} rounded-full mr-3 flex-shrink-0`}></div>
-                      <span className={`${category.textColor} text-sm font-medium`}>{item}</span>
-                    </li>
-                  ))}
-                </ul>
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  {category.items.slice(0, 4).map((item, idx) => {
+                    const itemTitle = getItemTitle(item);
+                    const imgSrc = getProductImage(item, category.title);
+                    
+                    return (
+                      <div key={idx} className="bg-white rounded-lg border border-gray-200 p-2 hover:shadow-md transition-all duration-200 group">
+                        {imgSrc ? (
+                          <div className="w-full h-20 bg-white border border-gray-100 rounded-md mb-2 flex items-center justify-center overflow-hidden">
+                            <img 
+                              src={imgSrc} 
+                              alt={itemTitle} 
+                              className="max-w-full max-h-full object-contain rounded group-hover:scale-105 transition-transform duration-200"
+                            />
+                          </div>
+                        ) : (
+                          <div className="w-full h-20 bg-gray-50 border border-dashed border-gray-200 rounded-md mb-2 flex items-center justify-center">
+                            <Package className="h-6 w-6 text-gray-300" />
+                          </div>
+                        )}
+                        <p className={`${category.textColor} text-xs font-medium text-center leading-tight`} style={{ 
+                          display: '-webkit-box', 
+                          WebkitLineClamp: 2, 
+                          WebkitBoxOrient: 'vertical', 
+                          overflow: 'hidden' 
+                        }}>
+                          {itemTitle}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
                 
-                {category.items.length > 3 && (
-                  <p className="text-xs text-gray-500 mt-2 italic">+{category.items.length - 3} more items</p>
+                {category.items.length > 4 && (
+                  <p className="text-xs text-gray-500 text-center italic">+{category.items.length - 4} more products</p>
                 )}
                 
                 {/* Action button */}

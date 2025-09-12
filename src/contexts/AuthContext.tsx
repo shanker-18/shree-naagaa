@@ -32,6 +32,10 @@ interface UserProfile {
   state: string;
   isFirstTimeOrder?: boolean;
   emailVerified?: boolean;
+  isOfferEligible?: boolean;
+  hasUsedOffer?: boolean;
+  offerClaimed?: boolean;
+  hasUsedFreeSamples?: boolean;
 }
 
 interface AuthContextType {
@@ -114,6 +118,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           parsedProfile.emailVerified = firebaseUser.emailVerified;
           // Check if user is still first-time based on order history
           parsedProfile.isFirstTimeOrder = checkIsFirstTimeOrder(firebaseUser.uid);
+          // Set offer eligibility if not already set
+          if (parsedProfile.isOfferEligible === undefined) {
+            parsedProfile.isOfferEligible = true;
+          }
+          if (parsedProfile.hasUsedOffer === undefined) {
+            parsedProfile.hasUsedOffer = false;
+          }
+          if (parsedProfile.hasUsedFreeSamples === undefined) {
+            parsedProfile.hasUsedFreeSamples = false;
+          }
           setProfile(parsedProfile);
           // Save updated profile back to localStorage
           localStorage.setItem(`profile_${firebaseUser.uid}`, JSON.stringify(parsedProfile));
@@ -127,7 +141,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             address: '',
             state: '',
             emailVerified: firebaseUser.emailVerified,
-            isFirstTimeOrder: true // New users are always first-time
+            isFirstTimeOrder: true, // New users are always first-time
+            isOfferEligible: true, // New users are eligible for offers
+            hasUsedOffer: false, // Haven't used offer yet
+            hasUsedFreeSamples: false // Haven't used free samples yet
           };
           setProfile(newProfile);
           localStorage.setItem(`profile_${firebaseUser.uid}`, JSON.stringify(newProfile));

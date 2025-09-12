@@ -1,7 +1,6 @@
 // Order service implementation
 
 import { v4 as uuidv4 } from 'uuid';
-import { saveOrderToMongoDB, getOrderFromMongoDB, updateOrderStatusInMongoDB } from './mongodb';
 import { sendWarehouseEmail } from './email';
 import { API_ENDPOINTS } from '../config/api';
 
@@ -26,7 +25,7 @@ function isFirstTimeOrder(userId: string | null | undefined): boolean {
 // Function to place an order and send warehouse email
 export const placeOrder = async (order: any) => {
   try {
-    // save order to MongoDB (API call)
+    // save order to Supabase (API call)
     const response = await fetch(API_ENDPOINTS.ORDERS, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -76,7 +75,7 @@ interface OrderData {
 // Create order function
 export async function createOrder(orderData: OrderData) {
   try {
-    // First try to save to MongoDB via the Data API
+    // Try to save to Supabase via the backend API
     try {
       // Generate a UUID for the order
       const orderId = uuidv4();
@@ -94,8 +93,8 @@ export async function createOrder(orderData: OrderData) {
       // Determine delivery time based on state
       const deliveryDate = userState === 'Tamil Nadu' ? '3-5 days' : '10 days';
       
-      // Format the order data for MongoDB
-      const mongoOrderData = {
+      // Format the order data for Supabase backend
+      const orderDataForBackend = {
         order_id: orderId, // Use the generated UUID
         user_id: orderData.user_id || null,
         guest_name: orderData.guest_name,
@@ -104,72 +103,66 @@ export async function createOrder(orderData: OrderData) {
         state: userState,
         items: orderData.items.map(item => ({
           name: item.product_name,
-          qty: item.quantity
+          qty: item.quantity,
+          price: item.price
         })),
         total_price: orderData.final_amount,
-        payment_status: 'Confirmed', // Set to Confirmed as per requirements
+        payment_status: 'confirmed', // Set to confirmed as per requirements
         delivery_date: deliveryDate, // Set based on state
         status: 'pending', // Initial status
         isFirstTimeOrder: isFirstTimeOrder(orderData.user_id)
       };
       
-      console.log('Sending order to MongoDB:', mongoOrderData);
+      console.log('Sending order to Supabase backend:', orderDataForBackend);
       
-      // Save to MongoDB using the backend API
-      const result = await saveOrderToMongoDB(mongoOrderData);
+      // Save to Supabase using the backend API
+      const response = await fetch(API_ENDPOINTS.ORDERS, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(orderDataForBackend)
+      });
       
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to save order to MongoDB');
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
       }
       
-      if (result.success) {
+      const result = await response.json();
+      console.log('Supabase save result via backend:', result);
+      
+      if (result.success && result.order) {
         // Use the order_id from the backend response
-        const savedOrderId = result.order?.order_id || orderId;
-        // If MongoDB returns a different ID (_id), store it as order_id
-        const mongoDbId = result.order?._id;
-        console.log('Order saved to backend successfully:', savedOrderId);
-        console.log('MongoDB _id:', mongoDbId);
+        const savedOrderId = result.order.order_id || orderId;
+        const supabaseId = result.order.id; // Supabase auto-generated ID
+        console.log('Order saved to Supabase successfully:', savedOrderId);
+        console.log('Supabase ID:', supabaseId);
+        
+        // Check if order contains free samples and mark offer as used
+        if (orderData.user_id && orderData.items.some(item => item.price === 0 || item.product_name.toLowerCase().includes('free sample'))) {
+          markOfferAsUsed(orderData.user_id);
+        }
         
         // Store the order in localStorage as a backup
         storeOrderInLocalStorage({
           ...orderData,
           id: savedOrderId,
-          // Store MongoDB _id as order_id if available
-          order_id: mongoDbId || savedOrderId,
+          supabase_id: supabaseId,
+          order_id: savedOrderId,
           created_at: new Date().toISOString(),
-          backend_saved: true
+          backend_saved: true,
+          saved_to: 'supabase'
         });
         
-        // Send email notification for the order
-        try {
-          const emailOrder = {
-            id: savedOrderId,
-            customerName: orderData.guest_name,
-            customerPhone: orderData.guest_phone,
-            customerAddress: orderData.guest_address,
-            items: orderData.items.map((item) => ({
-              name: item.product_name,
-              qty: item.quantity
-            })),
-            totalPrice: `₹${orderData.final_amount}`,
-            paymentStatus: 'Confirmed',
-            deliveryDate: mongoOrderData.delivery_date
-          };
-          
-          console.log('Sending email notification for order:', savedOrderId);
-          await sendWarehouseEmail(emailOrder);
-          console.log('Email notification sent successfully');
-        } catch (emailError) {
-          console.error('Failed to send email notification:', emailError);
-          // Don't fail the order creation if email fails
-        }
+        // NOTE: Email sending is now handled in OrderSummary.tsx when user clicks "Place Order"
+        // This prevents emails from being sent during navigation to order summary
         
-        return { success: true, orderId: savedOrderId, mongoDbId };
+        return { success: true, orderId: savedOrderId, supabaseId };
       } else {
-        throw new Error(result.message || 'Failed to save order to backend');
+        throw new Error(result.message || result.error || 'Failed to save order to Supabase');
       }
     } catch (apiError) {
-      console.error('Failed to save order to backend API:', apiError);
+      console.error('Failed to save order to Supabase backend API:', apiError);
       // Continue to fallback methods
     }
     
@@ -188,6 +181,11 @@ export async function createOrder(orderData: OrderData) {
     if (typeof window !== 'undefined' && (window as any).__demoContext) {
       const result = await (window as any).__demoContext.createOrder(simplifiedOrder);
       console.log('Order saved to DemoContext:', result.orderId);
+      
+      // Check if order contains free samples and mark offer as used
+      if (orderData.user_id && orderData.items.some(item => item.price === 0 || item.product_name.toLowerCase().includes('free sample'))) {
+        markOfferAsUsed(orderData.user_id);
+      }
       
       // Also store in localStorage as a backup
       storeOrderInLocalStorage({
@@ -214,6 +212,11 @@ export async function createOrder(orderData: OrderData) {
         saved_to: 'localStorage'
       };
       
+      // Check if order contains free samples and mark offer as used
+      if (orderData.user_id && orderData.items.some(item => item.price === 0 || item.product_name.toLowerCase().includes('free sample'))) {
+        markOfferAsUsed(orderData.user_id);
+      }
+      
       // Store in localStorage
       storeOrderInLocalStorage(newOrder);
       
@@ -223,6 +226,21 @@ export async function createOrder(orderData: OrderData) {
   } catch (error: any) {
     console.error('Error creating order:', error);
     return { success: false, error: error.message || 'Failed to create order' };
+  }
+}
+
+// Helper function to mark special offer as used
+function markOfferAsUsed(userId: string) {
+  try {
+    const savedProfile = localStorage.getItem(`profile_${userId}`);
+    if (savedProfile) {
+      const profile = JSON.parse(savedProfile);
+      profile.hasUsedOffer = true;
+      localStorage.setItem(`profile_${userId}`, JSON.stringify(profile));
+      console.log('Special offer marked as used for user:', userId);
+    }
+  } catch (error) {
+    console.error('Failed to mark offer as used:', error);
   }
 }
 

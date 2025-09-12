@@ -1,7 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
-import { ChevronRight, ShoppingCart, Plus, Check } from 'lucide-react';
+import { ChevronRight, ShoppingCart, Plus, Check, CheckCircle } from 'lucide-react';
 import { useCart } from '../contexts/CartContext';
+import { useAuth } from '../contexts/AuthContext';
+import { useTempSamples } from '../contexts/TempSamplesContext';
+import AuthModal from './AuthModal';
 
 interface ProductDetailsProps {}
 
@@ -9,6 +12,12 @@ const ProductDetails: React.FC<ProductDetailsProps> = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { addToCart, isInCart } = useCart();
+  const { user } = useAuth();
+  const { tempSamples, hasTempSamples } = useTempSamples();
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  
+  // Debug: Check temp samples on component mount
+  console.log('📱 ProductDetails mounted with temp samples:', { tempSamples, hasSamples: hasTempSamples(), count: tempSamples?.length });
   
   // Get product details from location state
   const { product } = location.state || {};
@@ -34,28 +43,92 @@ const ProductDetails: React.FC<ProductDetailsProps> = () => {
   };
 
   const handleBuyNow = () => {
-    // Navigate directly to order details with product information
+    console.log('🚀 ProductDetails handleBuyNow called');
+    console.log('📊 TempSamples context state:', { tempSamples, hasTempSamples: hasTempSamples(), count: tempSamples?.length });
+    
+    // Create current product item
+    const currentProductItem = {
+      product_name: name,
+      quantity: 1,
+      price,
+      category,
+      isSample: false
+    };
+
+    // Merge temp samples with current product
+    const allItems = hasTempSamples() ? [...tempSamples, currentProductItem] : [currentProductItem];
+    console.log('🛒 Merging items for buy now:', { tempSamples, currentProduct: currentProductItem, allItems });
+    console.log('🎯 Final merged items count:', allItems.length);
+
+    // Calculate totals (samples are free)
+    const productTotal = price;
+    let discountAmount = 0;
+    let finalAmount = productTotal;
+
+    // Apply 10% discount if there are samples
+    if (hasTempSamples() && localStorage.getItem('hasDiscountEligibility') === 'true') {
+      discountAmount = productTotal * 0.1;
+      finalAmount = productTotal - discountAmount;
+    }
+
+    // Check if user is already authenticated
+    if (user) {
+      // User is logged in, go directly to order details
+      navigate('/order-details', {
+        state: {
+          isAuthenticated: true,
+          productName: name,
+          category,
+          price,
+          items: allItems,
+          total_amount: productTotal,
+          discount_amount: discountAmount,
+          final_amount: finalAmount,
+          isFromBuyNow: true,
+          hasTempSamples: hasTempSamples()
+        }
+      });
+    } else {
+      // User is not logged in, show auth modal
+      localStorage.setItem('pendingProduct', JSON.stringify({ name, category, price, items: allItems, total_amount: productTotal, discount_amount: discountAmount, final_amount: finalAmount }));
+      setShowAuthModal(true);
+    }
+  };
+
+  const handleContinueShopping = () => {
+    navigate('/');
+  };
+
+  const handleSignIn = () => {
+    setShowAuthModal(false);
+    navigate('/login');
+  };
+
+  const handleGuest = () => {
+    setShowAuthModal(false);
+    
+    // Get merged product data from localStorage
+    const pendingProduct = JSON.parse(localStorage.getItem('pendingProduct') || '{}');
+    
     navigate('/order-details', {
       state: {
-        productName: name,
-        category,
-        price,
-        items: [{
+        isAuthenticated: false,
+        productName: pendingProduct.name || name,
+        category: pendingProduct.category || category,
+        price: pendingProduct.price || price,
+        items: pendingProduct.items || [{
           product_name: name,
           quantity: 1,
           price,
           category
         }],
-        total_amount: price,
-        discount_amount: 0,
-        final_amount: price,
-        isFromBuyNow: true
+        total_amount: pendingProduct.total_amount || price,
+        discount_amount: pendingProduct.discount_amount || 0,
+        final_amount: pendingProduct.final_amount || price,
+        isFromBuyNow: true,
+        hasTempSamples: hasTempSamples()
       }
     });
-  };
-
-  const handleContinueShopping = () => {
-    navigate('/');
   };
 
   // Determine category color scheme
@@ -134,12 +207,35 @@ const ProductDetails: React.FC<ProductDetailsProps> = () => {
           <div className="grid md:grid-cols-2 gap-8 p-6 md:p-8">
             <div>
               {image ? (
-                <div className={`w-full h-80 ${categoryStyle.bgColor} border ${categoryStyle.borderColor} rounded-xl flex items-center justify-center overflow-hidden`}>
-                  <img src={image} alt={name} className="w-full h-full object-contain" />
+                <div className={`w-full h-96 ${categoryStyle.bgColor} border ${categoryStyle.borderColor} rounded-xl flex items-center justify-center overflow-hidden p-6 shadow-lg`}>
+                  <img 
+                    src={image} 
+                    alt={name} 
+                    className="max-w-full max-h-full object-contain rounded transform transition-transform duration-300 hover:scale-110"
+                    style={{ 
+                      objectPosition: 'center',
+                      filter: 'drop-shadow(0 6px 12px rgba(0, 0, 0, 0.15))'
+                    }}
+                  />
                 </div>
               ) : (
-                <div className={`w-full h-80 bg-gray-50 border border-dashed ${categoryStyle.borderColor} rounded-xl flex items-center justify-center`}>
+                <div className={`w-full h-96 bg-gray-50 border border-dashed ${categoryStyle.borderColor} rounded-xl flex items-center justify-center shadow-lg`}>
                   <span className="text-gray-400 text-sm">Image not available</span>
+                </div>
+              )}
+              
+              {/* Temp Samples Indicator */}
+              {hasTempSamples() && (
+                <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-center space-x-2">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <span className="text-sm font-medium text-green-800">
+                      {tempSamples.length} free sample{tempSamples.length > 1 ? 's' : ''} will be included
+                    </span>
+                  </div>
+                  <p className="text-xs text-green-700 mt-1">
+                    You'll get 10% discount on this product!
+                  </p>
                 </div>
               )}
               
@@ -149,7 +245,7 @@ const ProductDetails: React.FC<ProductDetailsProps> = () => {
                   className="bg-gradient-to-r from-red-600 to-red-500 text-white font-medium py-3 px-6 rounded-lg hover:from-red-700 hover:to-red-600 transition-all duration-300 flex items-center justify-center space-x-2"
                 >
                   <ShoppingCart className="h-5 w-5" />
-                  <span>Buy Now</span>
+                  <span>Buy Now{hasTempSamples() ? ' + Samples' : ''}</span>
                 </button>
                 
                 <button 
@@ -189,6 +285,13 @@ const ProductDetails: React.FC<ProductDetailsProps> = () => {
           </div>
         </div>
       </div>
+      
+      <AuthModal 
+        isOpen={showAuthModal} 
+        onClose={() => setShowAuthModal(false)} 
+        onSignIn={handleSignIn} 
+        onGuest={handleGuest} 
+      />
     </div>
   );
 };

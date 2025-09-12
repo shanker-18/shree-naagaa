@@ -1,105 +1,34 @@
-import mongoose from 'mongoose';
+import { createClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
 
-// Order Schema (inline for serverless)
-const orderSchema = new mongoose.Schema({
-  order_id: {
-    type: String,
-    required: true,
-    unique: true
-  },
-  user_id: {
-    type: String,
-    default: null
-  },
-  guest_name: {
-    type: String,
-    required: true
-  },
-  guest_phone: {
-    type: String,
-    required: true
-  },
-  guest_address: {
-    type: String,
-    required: true
-  },
-  items: [{
-    name: {
-      type: String,
-      required: true
-    },
-    qty: {
-      type: Number,
-      required: true
-    },
-    price: {
-      type: Number,
-      default: 0
-    }
-  }],
-  total_price: {
-    type: Number,
-    required: true
-  },
-  payment_status: {
-    type: String,
-    enum: ['pending', 'confirmed', 'failed'],
-    default: 'pending'
-  },
-  delivery_date: {
-    type: String,
-    default: '3-5 business days'
-  },
-  status: {
-    type: String,
-    enum: ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'],
-    default: 'pending'
-  },
-  created_at: {
-    type: Date,
-    default: Date.now
-  },
-  updated_at: {
-    type: Date,
-    default: Date.now
-  }
-}, {
-  timestamps: true
-});
+// Initialize Supabase client
+const supabaseUrl = process.env.SUPABASE_URL || 'https://vxlldtzcedpmwxwszpvk.supabase.co';
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ4bGxkdHpjZWRwbXd4d3N6cHZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4NDA2MjEsImV4cCI6MjA3MTQxNjYyMX0.KxOz_sGQAg5fECqHZpzsD0QUFwa4GCFxXGIs00hDU6Y';
 
-// Update the updated_at field before saving
-orderSchema.pre('save', function(next) {
-  this.updated_at = new Date();
-  next();
-});
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // In-memory storage fallback
 let inMemoryOrders = [];
-let isConnected = false;
-let Order;
 
-// MongoDB Connection
-async function connectToDatabase() {
-  if (isConnected && mongoose.connection.readyState === 1) {
-    return;
-  }
-
+// Function to connect to Supabase (just a health check)
+async function testSupabaseConnection() {
   try {
-    const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/sample_mflix';
-    await mongoose.connect(mongoUri);
-    isConnected = true;
+    const { data, error } = await supabase
+      .from('orders')
+      .select('id')
+      .limit(1);
     
-    // Create or get the model
-    if (!Order) {
-      Order = mongoose.models.Order || mongoose.model('Order', orderSchema);
+    if (error) {
+      console.log("⚠️ Supabase connection test failed:", error.message);
+      return false;
     }
     
-    console.log("✅ MongoDB connected successfully");
+    console.log("✅ Supabase connected successfully");
+    return true;
   } catch (error) {
-    console.log("⚠️ MongoDB connection failed, using in-memory storage");
-    console.error("MongoDB Error:", error.message);
-    isConnected = false;
+    console.log("⚠️ Supabase connection failed, will use in-memory storage");
+    console.error("Supabase Error:", error.message);
+    return false;
   }
 }
 
@@ -114,7 +43,7 @@ export default async function handler(req, res) {
     return;
   }
 
-  await connectToDatabase();
+  const supabaseConnected = await testSupabaseConnection();
 
   try {
     if (req.method === 'GET') {
@@ -125,12 +54,22 @@ export default async function handler(req, res) {
         // Get specific order
         let order = null;
         
-        if (isConnected && Order) {
+        if (supabaseConnected) {
           try {
-            order = await Order.findOne({ order_id: orderId });
-            console.log("✅ Order retrieved from MongoDB");
-          } catch (mongoError) {
-            console.log("⚠️ MongoDB query failed, using in-memory storage");
+            const { data, error } = await supabase
+              .from('orders')
+              .select('*')
+              .eq('order_id', orderId)
+              .single();
+              
+            if (error) {
+              throw error;
+            }
+            
+            order = data;
+            console.log("✅ Order retrieved from Supabase");
+          } catch (supabaseError) {
+            console.log("⚠️ Supabase query failed, using in-memory storage");
             order = inMemoryOrders.find(o => o.order_id === orderId);
           }
         } else {
@@ -153,12 +92,21 @@ export default async function handler(req, res) {
         // Get all orders
         let orders = [];
         
-        if (isConnected && Order) {
+        if (supabaseConnected) {
           try {
-            orders = await Order.find().sort({ created_at: -1 });
-            console.log("✅ Orders retrieved from MongoDB");
-          } catch (mongoError) {
-            console.log("⚠️ MongoDB query failed, using in-memory storage");
+            const { data, error } = await supabase
+              .from('orders')
+              .select('*')
+              .order('created_at', { ascending: false });
+              
+            if (error) {
+              throw error;
+            }
+            
+            orders = data || [];
+            console.log("✅ Orders retrieved from Supabase");
+          } catch (supabaseError) {
+            console.log("⚠️ Supabase query failed, using in-memory storage");
             orders = [...inMemoryOrders].sort((a, b) => 
               new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
             );
@@ -191,19 +139,29 @@ export default async function handler(req, res) {
       
       let order;
       
-      if (isConnected && Order) {
+      if (supabaseConnected) {
         try {
-          order = await Order.create(orderData);
-          console.log("✅ Order saved to MongoDB successfully");
-        } catch (mongoError) {
-          console.log("⚠️ MongoDB save failed, using in-memory storage");
-          console.error("MongoDB Error:", mongoError.message);
+          const { data, error } = await supabase
+            .from('orders')
+            .insert([orderData])
+            .select()
+            .single();
+            
+          if (error) {
+            throw error;
+          }
+          
+          order = data;
+          console.log("✅ Order saved to Supabase successfully");
+        } catch (supabaseError) {
+          console.log("⚠️ Supabase save failed, using in-memory storage");
+          console.error("Supabase Error:", supabaseError.message);
           // Fallback to in-memory storage
           order = {
             ...orderData,
-            _id: uuidv4(),
-            created_at: new Date(),
-            updated_at: new Date()
+            id: uuidv4(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
           };
           inMemoryOrders.push(order);
           console.log("✅ Order saved to in-memory storage");
@@ -212,9 +170,9 @@ export default async function handler(req, res) {
         // Use in-memory storage
         order = {
           ...orderData,
-          _id: uuidv4(),
-          created_at: new Date(),
-          updated_at: new Date()
+          id: uuidv4(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         };
         inMemoryOrders.push(order);
         console.log("✅ Order saved to in-memory storage");
@@ -247,26 +205,31 @@ export default async function handler(req, res) {
 
       let result = null;
       
-      if (isConnected && Order) {
+      if (supabaseConnected) {
         try {
-          result = await Order.findOneAndUpdate(
-            { order_id: orderId },
-            { 
-              $set: { 
-                status: status,
-                updated_at: new Date()
-              } 
-            },
-            { new: true }
-          );
-          console.log("✅ Order updated in MongoDB");
-        } catch (mongoError) {
-          console.log("⚠️ MongoDB update failed, using in-memory storage");
+          const { data, error } = await supabase
+            .from('orders')
+            .update({ 
+              status: status, 
+              updated_at: new Date().toISOString() 
+            })
+            .eq('order_id', orderId)
+            .select()
+            .single();
+            
+          if (error) {
+            throw error;
+          }
+          
+          result = data;
+          console.log("✅ Order updated in Supabase");
+        } catch (supabaseError) {
+          console.log("⚠️ Supabase update failed, using in-memory storage");
           // Fallback to in-memory storage
           const orderIndex = inMemoryOrders.findIndex(o => o.order_id === orderId);
           if (orderIndex !== -1) {
             inMemoryOrders[orderIndex].status = status;
-            inMemoryOrders[orderIndex].updated_at = new Date();
+            inMemoryOrders[orderIndex].updated_at = new Date().toISOString();
             result = inMemoryOrders[orderIndex];
           }
         }
@@ -275,7 +238,7 @@ export default async function handler(req, res) {
         const orderIndex = inMemoryOrders.findIndex(o => o.order_id === orderId);
         if (orderIndex !== -1) {
           inMemoryOrders[orderIndex].status = status;
-          inMemoryOrders[orderIndex].updated_at = new Date();
+          inMemoryOrders[orderIndex].updated_at = new Date().toISOString();
           result = inMemoryOrders[orderIndex];
           console.log("✅ Order updated in in-memory storage");
         }
