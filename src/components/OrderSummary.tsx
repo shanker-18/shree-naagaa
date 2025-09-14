@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useDemoContext } from '../contexts/DemoContext';
 import { v4 as uuidv4 } from 'uuid';
 import { sendWarehouseEmail } from '../services/email';
+import { sendOrderNotificationWhatsApp } from '../services/whatsapp';
 import { API_ENDPOINTS } from '../config/api';
 // Remove EmailJS import as it's now handled by the backend
 
@@ -123,6 +124,23 @@ const OrderSummary: React.FC = () => {
           console.log('📧 Final email data being sent:', JSON.stringify(emailOrderData, null, 2));
           
           await sendWarehouseEmail(emailOrderData);
+          
+          // Send enhanced WhatsApp notification to multiple numbers
+          console.log('📱 Sending enhanced WhatsApp notification...');
+          try {
+            const whatsappResult = await sendOrderNotificationWhatsApp(emailOrderData);
+            if (whatsappResult.success) {
+              if (whatsappResult.fallback) {
+                console.log('✅ WhatsApp notification sent successfully (fallback to single number)');
+              } else {
+                console.log(`✅ WhatsApp notification sent successfully to ${whatsappResult.summary?.successful || 1} numbers`);
+              }
+            } else {
+              console.warn('⚠️ Enhanced WhatsApp notification failed:', whatsappResult.error);
+            }
+          } catch (whatsappErr) {
+            console.error('❌ Enhanced WhatsApp notification error:', whatsappErr);
+          }
         } catch (emailErr) {
           console.error('❌ Error sending client-side email notifications:', emailErr);
         }

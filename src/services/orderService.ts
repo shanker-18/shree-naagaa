@@ -2,6 +2,7 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import { sendWarehouseEmail } from './email';
+import { sendOrderNotificationWhatsApp } from './whatsapp';
 import { API_ENDPOINTS } from '../config/api';
 
 // Function to check if this is a user's first order
@@ -39,10 +40,30 @@ export const placeOrder = async (order: any) => {
     // send warehouse email
     const emailResult = await sendWarehouseEmail(order);
     
+    // send enhanced WhatsApp notification to multiple numbers
+    let whatsappResult = { success: false, error: 'WhatsApp not attempted' };
+    try {
+      console.log('📱 Sending WhatsApp notification to warehouse and order processing team...');
+      whatsappResult = await sendOrderNotificationWhatsApp(order);
+      if (whatsappResult.success) {
+        if (whatsappResult.fallback) {
+          console.log('✅ WhatsApp notification sent successfully (fallback to single number)');
+        } else {
+          console.log(`✅ WhatsApp notification sent successfully to ${whatsappResult.summary?.successful || 1} numbers`);
+        }
+      } else {
+        console.warn('⚠️ WhatsApp notification failed:', whatsappResult.error);
+      }
+    } catch (whatsappError) {
+      console.error('❌ WhatsApp notification error:', whatsappError);
+      whatsappResult = { success: false, error: whatsappError };
+    }
+    
     return {
       success: true,
       orderResult: await response.json(),
-      emailResult
+      emailResult,
+      whatsappResult
     };
   } catch (error: any) {
     console.error("Error in placeOrder:", error);
