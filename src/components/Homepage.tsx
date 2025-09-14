@@ -429,8 +429,8 @@ const Homepage: React.FC = () => {
         </div>
       </section>
 
-      {/* Categories Section - 2 Column Grid */}
-      <section id="categories" ref={categoriesRef} className="py-20 bg-gradient-to-b from-slate-100 via-blue-50 to-slate-100 relative overflow-hidden">
+      {/* All Products Section - Single Horizontal Scroll */}
+      <section id="products" ref={categoriesRef} className="py-20 bg-gradient-to-b from-slate-100 via-blue-50 to-slate-100 relative overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 50 }}
@@ -439,195 +439,132 @@ const Homepage: React.FC = () => {
             className="text-center mb-16"
           >
             <h2 className="text-4xl md:text-5xl font-bold corporate-blue mb-4 tracking-tight">
-              Our Categories
+              Our Products
             </h2>
             <p className="text-lg text-red-600 max-w-2xl mx-auto font-medium italic">
-              Discover our carefully curated collection of authentic Indian flavors
+              Discover our complete collection of authentic Indian spices and products
             </p>
           </motion.div>
 
-          {/* 2-Column Category Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {categories.map((category, categoryIndex) => {
-              const IconComponent = category.icon;
-              const hasMultipleItems = category.items.length > 1;
-              const itemsToShow = hasMultipleItems ? Math.min(category.items.length, 4) : category.items.length;
-              
-              return (
-                <motion.div
-                  key={categoryIndex}
-                  initial={{ opacity: 0, y: 50 }}
-                  animate={categoriesInView ? { opacity: 1, y: 0 } : {}}
-                  transition={{ duration: 0.6, delay: categoryIndex * 0.1 }}
-                  className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden hover:shadow-3xl transition-all duration-500 hover:-translate-y-2"
-                >
-                  {/* Category Header */}
-                  <div className={`bg-gradient-to-br ${category.gradient} p-6 relative`}>
-                    <div className="absolute inset-0 bg-black/10"></div>
-                    <div className="relative z-10 flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className="p-3 bg-white/25 backdrop-blur-sm rounded-2xl shadow-lg">
-                          <IconComponent className="h-7 w-7 text-white" />
+          {/* Single Horizontal Scroll of All Products */}
+          <div className="relative">
+            <div 
+              ref={el => scrollRefs.current['all-products'] = el}
+              className="flex overflow-x-auto gap-6 pb-6 scrollbar-hide px-4" 
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              {(() => {
+                // Flatten all products from all categories
+                const allProducts: Array<{ item: string, category: string, categoryTitle: string }> = [];
+                categories.forEach(category => {
+                  category.items.forEach(item => {
+                    allProducts.push({
+                      item,
+                      category: category.title,
+                      categoryTitle: category.title
+                    });
+                  });
+                });
+                
+                return allProducts.map((product, index) => {
+                  const itemTitle = getItemTitle(product.item);
+                  const imgSrc = getProductImage(product.item, product.category);
+                  const categoryColor = categories.find(cat => cat.title === product.category)?.gradient || 'from-gray-400 to-gray-600';
+                  
+                  return (
+                    <Link 
+                      key={index}
+                      to={`/category/${toSlug(product.category)}`}
+                      className="flex-none w-72 group cursor-pointer"
+                    >
+                      <div className="bg-gradient-to-br from-white to-gray-50 rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-500 border border-gray-100 overflow-hidden group-hover:-translate-y-2">
+                        {/* Product Image Container */}
+                        <div className="relative h-48 overflow-hidden">
+                          <div className="absolute top-3 left-3 z-10">
+                            <span className="bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">5% off</span>
+                          </div>
+                          <div className="absolute top-3 right-3 z-10">
+                            <span className={`bg-gradient-to-r ${categoryColor} text-white text-xs font-medium px-3 py-1 rounded-full shadow-lg`}>
+                              {product.category}
+                            </span>
+                          </div>
+                          <div className="h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center p-4">
+                            {imgSrc ? (
+                              <img 
+                                src={imgSrc} 
+                                alt={itemTitle} 
+                                className="max-w-full max-h-full object-contain transform group-hover:scale-110 transition-transform duration-500"
+                                style={{
+                                  filter: 'drop-shadow(0 8px 16px rgba(0, 0, 0, 0.15))'
+                                }}
+                              />
+                            ) : (
+                              <div className="w-full h-full bg-gray-200 rounded-2xl flex items-center justify-center transform group-hover:scale-110 transition-transform duration-500">
+                                <span className="text-gray-500 text-sm font-medium text-center px-4 leading-relaxed">{itemTitle}</span>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        <div>
-                          <h3 className="text-2xl font-bold text-white tracking-tight">{category.title}</h3>
-                          <p className="text-white/90 text-sm font-medium">{category.description}</p>
+                        
+                        {/* Product Details */}
+                        <div className="p-6">
+                          <h4 className="text-gray-800 font-bold text-lg mb-3 leading-tight group-hover:text-blue-600 transition-colors duration-300" style={{
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            minHeight: '3.5rem'
+                          }}>
+                            {itemTitle}
+                          </h4>
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-3">
+                              <span className="text-2xl font-bold text-gray-900">₹200</span>
+                              <span className="text-lg text-gray-500 line-through">₹210</span>
+                            </div>
+                            <span className="bg-black text-white text-sm font-medium px-3 py-1 rounded-full">200g</span>
+                          </div>
+                          <div className="text-center">
+                            <span className="inline-flex items-center text-blue-600 font-semibold group-hover:text-blue-700 transition-colors">
+                              View in {product.category}
+                              <ChevronRight className="h-4 w-4 ml-1 group-hover:translate-x-1 transition-transform" />
+                            </span>
+                          </div>
                         </div>
                       </div>
-                      <Link to={`/category/${toSlug(category.title)}`}>
-                        <button className="bg-white/20 hover:bg-white/30 text-white p-3 rounded-xl transition-all duration-300 hover:scale-110 backdrop-blur-sm border border-white/20 shadow-lg">
-                          <Expand className="h-5 w-5" />
-                        </button>
-                      </Link>
-                    </div>
-                  </div>
-                  
-                  {/* Products Section */}
-                  <div className="p-6">
-                    <div className="relative">
-                      {/* Single Item Display */}
-                      {!hasMultipleItems ? (
-                        <div className="flex justify-center">
-                          <div className="w-72 bg-gradient-to-br from-gray-50 to-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 p-4">
-                            {/* Product Image Container */}
-                            <div className="relative mb-4">
-                              <div className="absolute top-2 left-2 z-10">
-                                <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-lg shadow-sm">5% off</span>
-                              </div>
-                              <div className="h-40 bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl flex items-center justify-center overflow-hidden">
-                                {(() => {
-                                  const itemTitle = getItemTitle(category.items[0]);
-                                  const imgSrc = getProductImage(category.items[0], category.title);
-                                  
-                                  return imgSrc ? (
-                                    <img 
-                                      src={imgSrc} 
-                                      alt={itemTitle} 
-                                      className="max-w-full max-h-full object-contain transform rotate-2 hover:rotate-0 transition-transform duration-300"
-                                      style={{
-                                        filter: 'drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1))'
-                                      }}
-                                    />
-                                  ) : (
-                                    <div className="w-full h-full bg-gray-200 rounded-lg flex items-center justify-center transform rotate-2 hover:rotate-0 transition-transform duration-300">
-                                      <span className="text-gray-500 text-sm font-medium text-center px-2">{itemTitle}</span>
-                                    </div>
-                                  );
-                                })()}
-                              </div>
-                            </div>
-                            
-                            {/* Product Details */}
-                            <div className="text-center">
-                              <h4 className="text-gray-800 font-semibold text-sm mb-2 leading-tight">
-                                {getItemTitle(category.items[0])}
-                              </h4>
-                              <div className="flex items-center justify-center gap-2 mb-3">
-                                <span className="text-lg font-bold text-gray-900">₹200</span>
-                                <span className="text-sm text-gray-500 line-through">₹210</span>
-                              </div>
-                              <div className="mb-4">
-                                <span className="bg-black text-white text-xs font-medium px-2 py-1 rounded-full">200g</span>
-                              </div>
-                              {/* Removed action buttons from homepage - keeping clean look */}
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        /* Multiple Items with Scroll */
-                        <>
-                          <div 
-                            ref={el => scrollRefs.current[`category-${categoryIndex}`] = el}
-                            className="flex overflow-x-auto gap-4 pb-4 scrollbar-hide" 
-                            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-                            onScroll={() => updateScrollState(categoryIndex)}
-                          >
-                            {category.items.slice(0, itemsToShow).map((item, itemIndex) => {
-                              const itemTitle = getItemTitle(item);
-                              const imgSrc = getProductImage(item, category.title);
-                              return (
-                                <div key={itemIndex} className="flex-none w-56 bg-gradient-to-br from-gray-50 to-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100">
-                                  {/* Product Image Container */}
-                                  <div className="relative">
-                                    <div className="absolute top-2 left-2 z-10">
-                                      <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-lg shadow-sm">5% off</span>
-                                    </div>
-                                    <div className="h-36 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center p-3 overflow-hidden rounded-t-2xl">
-                                      {imgSrc ? (
-                                        <img 
-                                          src={imgSrc} 
-                                          alt={itemTitle} 
-                                          className="max-w-full max-h-full object-contain transform rotate-2 hover:rotate-0 transition-transform duration-300"
-                                          style={{
-                                            filter: 'drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1))'
-                                          }}
-                                        />
-                                      ) : (
-                                        <div className="w-full h-full bg-gray-200 rounded-lg flex items-center justify-center transform rotate-2 hover:rotate-0 transition-transform duration-300">
-                                          <span className="text-gray-500 text-xs font-medium text-center px-2">{itemTitle}</span>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                  
-                                  {/* Product Details */}
-                                  <div className="p-3">
-                                    <h4 className="text-gray-800 font-medium text-xs mb-2 leading-tight" style={{
-                                      display: '-webkit-box',
-                                      WebkitLineClamp: 2,
-                                      WebkitBoxOrient: 'vertical',
-                                      overflow: 'hidden',
-                                      minHeight: '2rem'
-                                    }}>
-                                      {itemTitle}
-                                    </h4>
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <span className="text-sm font-bold text-gray-900">₹200</span>
-                                      <span className="text-xs text-gray-500 line-through">₹210</span>
-                                    </div>
-                                    <div className="mb-3">
-                                      <span className="bg-black text-white text-xs font-medium px-2 py-1 rounded-full">200g</span>
-                                    </div>
-                                    {/* Removed action buttons from homepage - keeping clean look */}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                          
-                          {/* Premium Navigation arrows - only show if items overflow */}
-                          {category.items.length > 1 && (
-                            <>
-                              {/* Left Arrow */}
-                              {scrollStates[`category-${categoryIndex}`]?.canScrollLeft && (
-                                <button 
-                                  onClick={() => scrollCategory(categoryIndex, 'left')}
-                                  className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-2 w-10 h-10 bg-white/95 backdrop-blur-sm rounded-full shadow-xl flex items-center justify-center hover:bg-white transition-all duration-300 hover:scale-110 border border-gray-200 z-10"
-                                  aria-label="Scroll left"
-                                >
-                                  <ChevronLeft className="h-5 w-5 text-gray-600" />
-                                </button>
-                              )}
-                              
-                              {/* Right Arrow */}
-                              {scrollStates[`category-${categoryIndex}`]?.canScrollRight && (
-                                <button 
-                                  onClick={() => scrollCategory(categoryIndex, 'right')}
-                                  className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-2 w-10 h-10 bg-white/95 backdrop-blur-sm rounded-full shadow-xl flex items-center justify-center hover:bg-white transition-all duration-300 hover:scale-110 border border-gray-200 z-10"
-                                  aria-label="Scroll right"
-                                >
-                                  <ChevronRight className="h-5 w-5 text-gray-600" />
-                                </button>
-                              )}
-                            </>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </motion.div>
-              );
-            })}
+                    </Link>
+                  );
+                });
+              })()
+              }
+            </div>
+            
+            {/* Navigation Arrows for All Products */}
+            <button 
+              onClick={() => {
+                const container = scrollRefs.current['all-products'];
+                if (container) {
+                  container.scrollBy({ left: -300, behavior: 'smooth' });
+                }
+              }}
+              className="absolute left-2 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/95 backdrop-blur-sm rounded-full shadow-xl flex items-center justify-center hover:bg-white transition-all duration-300 hover:scale-110 border border-gray-200 z-10"
+              aria-label="Scroll left"
+            >
+              <ChevronLeft className="h-6 w-6 text-gray-600" />
+            </button>
+            
+            <button 
+              onClick={() => {
+                const container = scrollRefs.current['all-products'];
+                if (container) {
+                  container.scrollBy({ left: 300, behavior: 'smooth' });
+                }
+              }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/95 backdrop-blur-sm rounded-full shadow-xl flex items-center justify-center hover:bg-white transition-all duration-300 hover:scale-110 border border-gray-200 z-10"
+              aria-label="Scroll right"
+            >
+              <ChevronRight className="h-6 w-6 text-gray-600" />
+            </button>
           </div>
         </div>
       </section>
