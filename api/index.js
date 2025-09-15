@@ -17,6 +17,7 @@ export default function handler(req, res) {
       database: 'Supabase',
       endpoints: {
         orders: '/api/orders',
+        whatsapp: '/api/whatsapp',
         health: '/api'
       }
     });

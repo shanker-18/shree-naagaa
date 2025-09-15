@@ -1,61 +1,106 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Gift, CheckCircle, ShoppingCart, Package, Crown, Sparkles, Heart, Coffee, X, AlertCircle, ShoppingBag } from 'lucide-react';
+import { ArrowLeft, Gift, CheckCircle, ShoppingCart, Package, Crown, Sparkles, Heart, Coffee, X, AlertCircle, ShoppingBag, Leaf, Plus, Expand } from 'lucide-react';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useTempSamples } from '../contexts/TempSamplesContext';
 import { createOrder } from '../services/orderService';
 
 const FreeSamplesPage: React.FC = () => {
-  const [selectedItems, setSelectedItems] = useState<string[]>([]);
+  const [selectedBasket, setSelectedBasket] = useState<string | null>(null);
   const [showLimitPopup, setShowLimitPopup] = useState(false);
   const [loading, setLoading] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { addToCart } = useCart();
-  const { profile, updateProfile } = useAuth();
+  const { user, profile, updateProfile } = useAuth();
   const { addTempSamples } = useTempSamples();
   const fromOffer = location.state?.fromOffer || false;
 
-  // Check if user has already used free samples
+  // Check if user is logged in first
   useEffect(() => {
-    if (profile?.hasUsedFreeSamples) {
-      // Redirect to home with a message
+    if (!user) {
+      // User not logged in - redirect to login
+      navigate('/login', { 
+        state: { 
+          returnTo: '/free-samples',
+          message: 'Please login first to access free samples' 
+        }
+      });
+      return;
+    }
+
+    // Check if user has already used free samples (but allow access from special offer modal)
+    if (profile?.hasUsedFreeSamples && !fromOffer) {
+      // Redirect to home with a message only if not coming from offer modal
       navigate('/', { 
         state: { 
           message: 'You have already claimed your free samples offer. Thank you for being a valued customer!' 
         } 
       });
     }
-  }, [profile, navigate]);
+  }, [user, profile, navigate, fromOffer]);
 
-  // Comprehensive image mapping for all categories
+  // Comprehensive image mapping for all categories using available images
   const productImageMap: { pattern: RegExp; src: string; category?: string }[] = [
-    // Powder category - main powders
+    // Mix category - exact matches with available images
+    { pattern: /^puliodharai.*mix|^puliyotharai.*mix|tamarind.*mix/i, src: '/Items/Puliyotharai Mix.jpeg', category: 'Mix' },
+     { pattern: /^puliyotharai.*tamarind.*mix/i, src: '/Items/Puliyotharai Mix.jpeg', category: 'Mix' },
+    { pattern: /^vathakkuzhambu.*mix|vathal.*kuzhambu.*mix/i, src: '/Items/Vathakkuzhambu Mix.jpeg', category: 'Mix' },
+    
+    // Pickle category - exact matches with available images
+    { pattern: /^poondu.*pickle/i, src: '/Items/Poondu pickle.jpeg', category: 'Pickle' },
+    { pattern: /^garlic.*pickle/i, src: '/Items/Garlic Pickle.jpeg', category: 'Pickle' },
+    { pattern: /^pirandai.*pickle/i, src: '/Items/Pirandai pickle.jpeg', category: 'Pickle' },
+    { pattern: /^jathikkai.*pickle/i, src: '/Items/Jathikkai pickle.jpeg', category: 'Pickle' },
+    { pattern: /^jadhikkai.*pickle/i, src: '/Items/Jadhikkai Pickle.jpeg', category: 'Pickle' },
+    { pattern: /^mudakatthan.*pickle|^mudakkathan.*pickle/i, src: '/Items/Mudakatthan Pickle.jpeg', category: 'Pickle' },
+    { pattern: /^kara.*narthangai.*pickle/i, src: '/Items/Kara narthangai pickle.jpeg', category: 'Pickle' },
+    
+    // Powder category - exact matches with available images
     { pattern: /^turmeric.*powder|manjal.*powder/i, src: '/Items/Turmeric Powder.jpeg', category: 'Powder' },
-    { pattern: /^pure.*turmeric.*powder/i, src: '/Items/Pure Turmeric powder.jpeg', category: 'Powder' },
     { pattern: /^sambar.*powder/i, src: '/Items/Sambar powder.jpeg', category: 'Powder' },
     { pattern: /^rasam.*powder/i, src: '/Items/Rasam Powder.jpeg', category: 'Powder' },
-    { pattern: /rasam(?!.*powder)/i, src: '/Items/Rasam.jpeg', category: 'Powder' },
-    { pattern: /^ellu.*idli.*powder|^garlic.*idly.*powder/i, src: '/Items/Garlic idlie.jpeg', category: 'Powder' },
-    { pattern: /^poondu.*idly.*powder/i, src: '/Items/Idly Powder.jpeg', category: 'Powder' },
-    { pattern: /^andra.*spl.*paruppu.*powder/i, src: '/Items/Andra Spl.jpeg', category: 'Powder' },
-    { pattern: /^moringa.*leaf.*powder/i, src: '/Items/moringa leaf.jpeg', category: 'Powder' },
-    { pattern: /^curry.*leaves.*powder/i, src: '/Items/currly leaf.jpeg', category: 'Powder' },
-    { pattern: /^vathal.*powder|kollu.*sadha.*powder/i, src: '/Items/Vathal Powder.jpeg', category: 'Powder' },
-    { pattern: /kollu.*sadha.*powder/i, src: '/Items/kollu sadha powder.jpeg', category: 'Powder' },
+    { pattern: /^poondu.*idly.*powder|^poondu.*idli.*powder/i, src: '/Items/Poondu Idli Powder.jpeg', category: 'Powder' },
+    { pattern: /^ellu.*idli.*powder/i, src: '/Items/Idli Powder.jpeg', category: 'Powder' },
+    { pattern: /^andra.*spl.*paruppu.*powder/i, src: '/Items/Sambar powder.jpeg', category: 'Powder' }, // Using similar image
+    { pattern: /^moringa.*leaf.*powder/i, src: '/Items/Turmeric Powder.jpeg', category: 'Powder' }, // Using similar image
+    { pattern: /^curry.*leaves.*powder/i, src: '/Items/Idli Powder.jpeg', category: 'Powder' }, // Using similar image
+    { pattern: /^red.*chilli.*powder/i, src: '/Items/Sambar powder.jpeg', category: 'Powder' }, // Using similar image
     
-    // Mix category
-    { pattern: /^puliodharai.*mix|^puliyotharai.*mix|tamarind.*mix/i, src: '/Items/Puliyotharai (Tamarind) Mix.jpeg', category: 'Mix' },
-    { pattern: /^vathakkuzhambu.*mix|vathal.*kuzhambu.*mix/i, src: '/Items/Vathakkuzhambu Mix.jpeg', category: 'Mix' },
-    { pattern: /puliyo?kuzhambu.*powder/i, src: '/Items/Puliyokuzhambu Powder.jpeg', category: 'Mix' },
+    // Appalam category - using available images as fallbacks
+    { pattern: /^ulundhu.*appalam/i, src: '/Items/Idli Powder.jpeg', category: 'Appalam' }, // Using similar image
+    { pattern: /^rice.*appalam/i, src: '/Items/Turmeric Powder.jpeg', category: 'Appalam' }, // Using similar image
+    { pattern: /^kizhangu.*appalam/i, src: '/Items/Sambar powder.jpeg', category: 'Appalam' }, // Using similar image
     
-    // Pickle category
-    { pattern: /^poondu.*pickle|^garlic.*pickle/i, src: '/Items/Garlic Pickle.jpeg', category: 'Pickle' },
-    { pattern: /^jathikkai.*pickle|^jadhikkai.*pickle/i, src: '/Items/Jadhikkai Pickle.jpeg', category: 'Pickle' },
-    { pattern: /^mudakatthan.*pickle|^mudakkathan.*pickle/i, src: '/Items/Mudakatthan Pickle.jpeg', category: 'Pickle' },
+    // Coffee category - using available image as fallback
+    { pattern: /^coffee.*powder/i, src: '/Items/Idli Powder.jpeg', category: 'Coffee' }, // Using similar image
   ];
+
+  // Product descriptions mapping
+  const productDescriptions: { [key: string]: string } = {
+    'puliodharai mix': 'Ready-to-cook authentic traditional tamarind rice mix',
+    'vathakkuzhambu mix': 'Traditional dried vegetable gravy mix with authentic spices',
+    'poondu pickle': 'Homemade garlic pickle with medicinal benefits',
+    'pirandai pickle': 'Traditional pickle good for digestion and health',
+    'jathikkai pickle': 'Nutmeg pickle that aids digestive function',
+    'mudakkathan pickle': 'Medicinal pickle good for joint pain relief',
+    'kara narthangai pickle': 'Spicy citron pickle with tangy flavor',
+    'turmeric powder': 'Pure ground turmeric without additives',
+    'sambar powder': 'Aromatic blend for authentic South Indian sambar',
+    'rasam powder': 'Traditional spice mix for flavorful rasam',
+    'ellu idli powder': 'Sesame-based powder perfect with idli and dosa',
+    'poondu idly powder': 'Garlic-infused powder for enhanced taste',
+    'andra spl paruppu powder': 'Andhra-style special lentil powder blend',
+    'moringa leaf powder': 'Nutritious drumstick leaf powder',
+    'curry leaves powder': 'Aromatic curry leaves in powder form',
+    'red chilli powder': 'Fine quality red chili powder for spice',
+    'ulundhu appalam': 'Premium black gram papads, crispy and healthy',
+    'rice appalam': 'Traditional rice-based papads for meals',
+    'kizhangu appalam': 'Tapioca-based papads with authentic taste',
+    'coffee powder': 'Aromatic South Indian filter coffee powder'
+  };
 
   // Function to get image for any product across all categories
   const getProductImage = (item: string, categoryTitle: string): string | null => {
@@ -70,73 +115,115 @@ const FreeSamplesPage: React.FC = () => {
     return found ? found.src : null;
   };
 
-  // All categories with their items - Updated with new structure
-  const categories = [
+  // Sample baskets with predefined combinations
+  const sampleBaskets = [
     {
-      title: 'Mix',
-      icon: Package,
-      gradient: 'from-amber-600 to-orange-500',
-      items: [
-        { id: 'puliodharai-mix', name: 'Puliodharai mix' },
-        { id: 'vathakkuzhambu-mix', name: 'Vathakkuzhambu mix' }
-      ]
-    },
-    {
-      title: 'Pickle',
-      icon: Heart,
-      gradient: 'from-purple-600 to-indigo-500',
-      items: [
-        { id: 'poondu-pickle', name: 'Poondu pickle' },
-        { id: 'pirandai-pickle', name: 'Pirandai pickle' },
-        { id: 'jathikkai-pickle', name: 'Jathikkai pickle' },
-        { id: 'mudakkathan-pickle', name: 'Mudakkathan pickle' },
-        { id: 'kara-narthangai-pickle', name: 'Kara narthangai pickle' }
-      ]
-    },
-    {
-      title: 'Powder',
+      id: 'traditional-spice-basket',
+      title: 'Traditional Spice Basket',
+      description: 'Essential powders for authentic South Indian cooking',
       icon: Crown,
       gradient: 'from-red-600 to-rose-500',
+      available: 50, // Available samples for this basket
       items: [
-        { id: 'turmeric-powder', name: 'Turmeric powder' },
-        { id: 'sambar-powder', name: 'Sambar powder' },
-        { id: 'rasam-powder', name: 'Rasam powder' },
-        { id: 'ellu-idli-powder', name: 'Ellu idli powder' },
-        { id: 'poondu-idly-powder', name: 'Poondu idly powder' },
-        { id: 'andra-spl-paruppu-powder', name: 'Andra spl paruppu powder' },
-        { id: 'moringa-leaf-powder', name: 'Moringa leaf powder' },
-        { id: 'curry-leaves-powder', name: 'Curry leaves powder' },
-        { id: 'red-chilli-powder', name: 'Red Chilli powder' }
+        { name: 'Turmeric powder', category: 'Powder' },
+        { name: 'Sambar powder', category: 'Powder' },
+        { name: 'Rasam powder', category: 'Powder' },
+        { name: 'Idli powder', category: 'Powder' },
+        { name: 'Red chilli powder', category: 'Powder' }
       ]
     },
     {
-      title: 'Appalam',
+      id: 'pickle-lovers-basket',
+      title: 'Pickle Lovers Basket',
+      description: 'Traditional pickles with medicinal benefits',
+      icon: Heart,
+      gradient: 'from-purple-600 to-indigo-500',
+      available: 40,
+      items: [
+        { name: 'Poondu pickle', category: 'Pickle' },
+        { name: 'Pirandai pickle', category: 'Pickle' },
+        { name: 'Jathikkai pickle', category: 'Pickle' },
+        { name: 'Mudakkathan pickle', category: 'Pickle' }
+      ]
+    },
+    {
+      id: 'ready-cook-basket',
+      title: 'Ready-to-Cook Basket',
+      description: 'Instant mixes for quick traditional meals',
+      icon: Package,
+      gradient: 'from-amber-600 to-orange-500',
+      available: 35,
+      items: [
+        { name: 'Puliodharai mix', category: 'Mix' },
+        { name: 'Vathakkuzhambu mix', category: 'Mix' },
+        { name: 'Puliyokuzhambu powder', category: 'Mix' },
+        { name: 'Sambar powder', category: 'Powder' },
+        { name: 'Rasam powder', category: 'Powder' }
+      ]
+    },
+    {
+      id: 'healthy-choice-basket',
+      title: 'Healthy Choice Basket',
+      description: 'Nutritious powders with health benefits',
+      icon: Leaf,
+      gradient: 'from-green-600 to-emerald-500',
+      available: 30,
+      items: [
+        { name: 'Moringa leaf powder', category: 'Powder' },
+        { name: 'Curry leaves powder', category: 'Powder' },
+        { name: 'Turmeric powder', category: 'Powder' },
+        { name: 'Poondu idli powder', category: 'Powder' }
+      ]
+    },
+    {
+      id: 'complete-meal-basket',
+      title: 'Complete Meal Basket',
+      description: 'Everything you need for a traditional Tamil meal',
       icon: Gift,
-      gradient: 'from-emerald-600 to-green-500',
+      gradient: 'from-blue-600 to-purple-500',
+      available: 25,
       items: [
-        { id: 'ulundhu-appalam', name: 'Ulundhu appalam' },
-        { id: 'rice-appalam', name: 'Rice appalam' },
-        { id: 'kizhangu-appalam', name: 'Kizhangu appalam' }
+        { name: 'Sambar powder', category: 'Powder' },
+        { name: 'Rasam powder', category: 'Powder' },
+        { name: 'Poondu pickle', category: 'Pickle' },
+        { name: 'Puliodharai mix', category: 'Mix' },
+        { name: 'Ulundhu appalam', category: 'Appalam' },
+        { name: 'Coffee powder', category: 'Coffee' }
       ]
     },
     {
-      title: 'Coffee',
-      icon: Coffee,
-      gradient: 'from-yellow-600 to-amber-500',
+      id: 'beginner-basket',
+      title: 'Beginner\'s Basket',
+      description: 'Perfect starter pack for traditional cooking',
+      icon: Sparkles,
+      gradient: 'from-pink-600 to-red-500',
+      available: 45,
       items: [
-        { id: 'coffee-powder', name: 'Coffee powder' }
+        { name: 'Turmeric powder', category: 'Powder' },
+        { name: 'Sambar powder', category: 'Powder' },
+        { name: 'Idli powder', category: 'Powder' },
+        { name: 'Poondu pickle', category: 'Pickle' },
+        { name: 'Puliodharai mix', category: 'Mix' }
       ]
     }
   ];
 
-  const handleItemToggle = (itemId: string) => {
-    if (selectedItems.includes(itemId)) {
-      setSelectedItems(selectedItems.filter(id => id !== itemId));
-    } else if (selectedItems.length < 7) {
-      setSelectedItems([...selectedItems, itemId]);
-    } else {
-      // Show popup when trying to add more than 7 items
+  const handleBasketSelect = (basketId: string) => {
+    const basket = sampleBaskets.find(b => b.id === basketId);
+    if (!basket) return;
+    
+    // Check if basket is available
+    if (basket.available <= 0) {
       setShowLimitPopup(true);
+      return;
+    }
+    
+    // If already selected, deselect
+    if (selectedBasket === basketId) {
+      setSelectedBasket(null);
+    } else {
+      // Select this basket (only one basket can be selected)
+      setSelectedBasket(basketId);
     }
   };
 
@@ -150,35 +237,22 @@ const FreeSamplesPage: React.FC = () => {
     }
   }, [showLimitPopup]);
 
-  const getSelectedItemsForOrder = () => {
-    const items: any[] = [];
-    selectedItems.forEach(itemId => {
-      let foundItem = null;
-      let categoryName = '';
-      
-      for (const category of categories) {
-        const item = category.items.find(i => i.id === itemId);
-        if (item) {
-          foundItem = item;
-          categoryName = category.title;
-          break;
-        }
-      }
-      
-      if (foundItem) {
-        items.push({
-          product_name: `${foundItem.name} (Free Sample)`,
-          quantity: 1,
-          price: 0,
-          category: categoryName
-        });
-      }
-    });
-    return items;
+  const getSelectedBasketItems = () => {
+    if (!selectedBasket) return [];
+    
+    const basket = sampleBaskets.find(b => b.id === selectedBasket);
+    if (!basket) return [];
+    
+    return basket.items.map(item => ({
+      product_name: `${item.name} (Free Sample)`,
+      quantity: 1,
+      price: 0,
+      category: item.category
+    }));
   };
 
   const handleContinueWithoutProducts = async () => {
-    if (selectedItems.length === 0) return;
+    if (!selectedBasket) return;
     if (!profile) {
       // Redirect to login if not authenticated
       navigate('/login');
@@ -188,7 +262,7 @@ const FreeSamplesPage: React.FC = () => {
     setLoading(true);
     
     try {
-      const items = getSelectedItemsForOrder();
+      const items = getSelectedBasketItems();
       
       // Navigate to order details with sample-only order
       navigate('/order-details', {
@@ -199,7 +273,8 @@ const FreeSamplesPage: React.FC = () => {
           discount_amount: 0,
           final_amount: 0,
           isFromSamples: true,
-          sampleOnly: true
+          sampleOnly: true,
+          selectedBasket: selectedBasket
         }
       });
 
@@ -215,42 +290,29 @@ const FreeSamplesPage: React.FC = () => {
   };
 
   const handleContinueWithProducts = () => {
-    if (selectedItems.length === 0) return;
+    if (!selectedBasket) return;
     
-    // Store samples in temporary storage instead of adding to cart
-    const tempSampleItems = selectedItems.map(itemId => {
-      let foundItem = null;
-      let categoryName = '';
-      
-      for (const category of categories) {
-        const item = category.items.find(i => i.id === itemId);
-        if (item) {
-          foundItem = item;
-          categoryName = category.title;
-          break;
-        }
-      }
-      
-      if (foundItem) {
-        return {
-          id: `${foundItem.id}-sample`,
-          product_name: `${foundItem.name} (Free Sample)`,
-          price: 0,
-          category: categoryName,
-          quantity: 1,
-          isSample: true
-        };
-      }
-      return null;
-    }).filter(item => item !== null);
+    const basket = sampleBaskets.find(b => b.id === selectedBasket);
+    if (!basket) return;
+    
+    // Store basket items in temporary storage
+    const tempSampleItems = basket.items.map((item, index) => ({
+      id: `${selectedBasket}-${index}-sample`,
+      product_name: `${item.name} (Free Sample)`,
+      price: 0,
+      category: item.category,
+      quantity: 1,
+      isSample: true
+    }));
 
     // Store samples in temporary storage
     addTempSamples(tempSampleItems);
-    console.log('🆓 Stored temp samples for later:', tempSampleItems);
+    console.log('🆓 Stored temp samples for basket:', basket.title, tempSampleItems);
 
     // Set flag for 10% discount eligibility
     localStorage.setItem('hasDiscountEligibility', 'true');
     localStorage.setItem('freeSamplesClaimed', 'true');
+    localStorage.setItem('selectedBasketId', selectedBasket);
     
     // Navigate to categories page (not home page)
     navigate('/categories');
@@ -272,9 +334,9 @@ const FreeSamplesPage: React.FC = () => {
                 <Gift className="h-12 w-12 text-white" />
               </div>
             </div>
-            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">Free Samples</h1>
+            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">Free Sample Baskets</h1>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Choose up to 7 items to try for free and discover the authentic taste of tradition
+              Choose ONE basket with curated combinations of our authentic traditional products
             </p>
           </div>
         </div>
@@ -283,7 +345,7 @@ const FreeSamplesPage: React.FC = () => {
         <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-6 mb-8">
           <h3 className="font-semibold text-green-800 mb-2 text-center">🎉 Special Offer</h3>
           <p className="text-green-700 text-center">
-            Select up to 7 free sample items. When you order other products along with these samples, 
+            Select ONE basket of curated products. When you order other products along with your basket, 
             you'll get an additional <span className="font-bold">10% discount</span> on all products!
           </p>
         </div>
@@ -291,107 +353,123 @@ const FreeSamplesPage: React.FC = () => {
         {/* Selection Counter */}
         <div className="bg-white rounded-lg shadow-md p-4 mb-8">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-gray-900">Selected Items</h3>
+            <h3 className="text-lg font-semibold text-gray-900">Selected Basket</h3>
             <span className="text-2xl font-bold text-red-600">
-              {selectedItems.length}/7
+              {selectedBasket ? '1 Basket Selected' : 'No Basket Selected'}
             </span>
           </div>
-          <div className="mt-2 bg-gray-200 rounded-full h-2">
-            <div 
-              className="bg-gradient-to-r from-red-500 to-amber-500 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${(selectedItems.length / 7) * 100}%` }}
-            ></div>
-          </div>
+          {selectedBasket && (
+            <div className="mt-3">
+              <div className="bg-green-100 border border-green-200 rounded-lg p-3">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                  <span className="font-medium text-green-800">
+                    {sampleBaskets.find(b => b.id === selectedBasket)?.title} - {sampleBaskets.find(b => b.id === selectedBasket)?.items.length} Items
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Categories */}
-        <div className="space-y-8">
-          {categories.map((category, categoryIndex) => {
-            const IconComponent = category.icon;
+        {/* Sample Baskets */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {sampleBaskets.map((basket, basketIndex) => {
+            const IconComponent = basket.icon;
+            const isSelected = selectedBasket === basket.id;
+            const isOutOfStock = basket.available <= 0;
             
             return (
               <motion.div
-                key={categoryIndex}
+                key={basket.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: categoryIndex * 0.05 }}
-                className="bg-white rounded-xl shadow-lg overflow-hidden"
+                transition={{ duration: 0.3, delay: basketIndex * 0.1 }}
+                className={`
+                  bg-white rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden cursor-pointer border-2
+                  ${isSelected 
+                    ? 'ring-4 ring-green-500 border-green-500 transform scale-105' 
+                    : isOutOfStock
+                    ? 'opacity-60 cursor-not-allowed border-gray-200'
+                    : 'border-gray-200 hover:border-gray-300 hover:-translate-y-1'
+                  }
+                `}
+                onClick={() => !isOutOfStock && handleBasketSelect(basket.id)}
               >
-                {/* Category Header */}
-                <div className={`bg-gradient-to-r ${category.gradient} p-6`}>
-                  <div className="flex items-center gap-3 text-white">
+                {/* Basket Header */}
+                <div className={`bg-gradient-to-r ${basket.gradient} p-6 relative`}>
+                  {isSelected && (
+                    <div className="absolute top-3 right-3">
+                      <CheckCircle className="h-6 w-6 text-white" />
+                    </div>
+                  )}
+                  
+                  {isOutOfStock && (
+                    <div className="absolute top-3 right-3 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
+                      OUT OF STOCK
+                    </div>
+                  )}
+                  
+                  <div className="flex items-center gap-3 text-white mb-3">
                     <IconComponent className="h-8 w-8" />
-                    <h2 className="text-2xl font-bold">{category.title}</h2>
-                    <span className="ml-auto text-sm bg-white/20 px-3 py-1 rounded-full">
-                      {category.items.length} Items Available
-                    </span>
+                    <div>
+                      <h3 className="text-xl font-bold">{basket.title}</h3>
+                      <p className="text-white/90 text-sm">{basket.description}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-between items-center text-white/90 text-sm">
+                    <span>{basket.items.length} Products Included</span>
+                    <span className="bg-white/20 px-2 py-1 rounded">{basket.available} Available</span>
                   </div>
                 </div>
 
-                {/* Category Items */}
+                {/* Basket Items Preview */}
                 <div className="p-6">
-                  <div className="grid grid-cols-1 min-[640px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6">
-                    {category.items.map((item) => {
-                      const isSelected = selectedItems.includes(item.id);
-                      const isDisabled = !isSelected && selectedItems.length >= 7;
-
-                      return (
-                        <motion.button
-                          key={item.id}
-                          onClick={() => handleItemToggle(item.id)}
-                          disabled={isDisabled}
-                          className={`
-                            w-full h-56 sm:h-48 p-4 rounded-xl border-2 text-left transition-all duration-200 relative flex flex-col justify-between shadow-lg
-                            ${isSelected 
-                              ? 'border-red-500 bg-red-50 text-red-800 shadow-xl transform scale-105' 
-                              : isDisabled 
-                              ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed shadow-md'
-                              : 'border-gray-200 hover:border-red-300 hover:bg-red-50 hover:shadow-xl hover:-translate-y-2'
-                            }
-                          `}
-                          whileHover={!isDisabled ? { scale: 1.02 } : {}}
-                          whileTap={!isDisabled ? { scale: 0.98 } : {}}
-                        >
-                          {/* Product Image */}
-                          <div className="w-full h-24 mx-auto mb-3 rounded-lg flex items-center justify-center overflow-hidden">
-                            {(() => {
-                              const imgSrc = getProductImage(item.name, category.title);
-                              
-                              return imgSrc ? (
-                                <img 
-                                  src={imgSrc} 
-                                  alt={item.name} 
-                                  className="max-w-full max-h-full object-contain transform transition-transform duration-300 hover:scale-110"
-                                  style={{
-                                    filter: 'drop-shadow(0 4px 8px rgba(0, 0, 0, 0.15))'
-                                  }}
-                                />
-                              ) : (
-                                <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
-                                  isSelected ? 'bg-red-200' : 'bg-gray-100'
-                                }`}>
-                                  <Package className={`h-6 w-6 ${
-                                    isSelected ? 'text-red-600' : 'text-gray-400'
-                                  }`} />
-                                </div>
-                              );
-                            })()} 
-                          </div>
-                          
-                          <div className="text-center">
-                            <p className="font-medium text-sm leading-tight mb-2 line-clamp-2">{item.name}</p>
-                            <p className="text-sm text-gray-500 font-medium">Sample Size</p>
-                          </div>
-                          
-                          {isSelected && (
-                            <div className="absolute -top-2 -right-2 w-8 h-8 bg-red-500 rounded-full flex items-center justify-center shadow-xl">
-                              <CheckCircle className="h-5 w-5 text-white" />
-                            </div>
-                          )}
-                        </motion.button>
-                      );
-                    })}
+                  <h4 className="font-semibold text-gray-900 mb-3">What's Included:</h4>
+                  <div className="space-y-2">
+                    {basket.items.map((item, itemIndex) => (
+                      <div key={itemIndex} className="flex items-center gap-2 text-sm text-gray-600">
+                        <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></div>
+                        <span>{item.name}</span>
+                        <span className="text-xs bg-gray-100 px-2 py-0.5 rounded text-gray-500">{item.category}</span>
+                      </div>
+                    ))}
                   </div>
+                  
+                  {/* Value Display */}
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <span className="text-2xl font-bold text-green-600">FREE</span>
+                        <span className="text-sm text-gray-500 ml-2 line-through">₹{basket.items.length * 50}</span>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm text-gray-600">Total Value</div>
+                        <div className="text-lg font-bold text-gray-900">₹{basket.items.length * 50}</div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Selection Button */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      !isOutOfStock && handleBasketSelect(basket.id);
+                    }}
+                    disabled={isOutOfStock}
+                    className={`
+                      w-full mt-4 py-3 px-4 rounded-lg font-semibold transition-all duration-200
+                      ${isSelected
+                        ? 'bg-green-600 text-white'
+                        : isOutOfStock
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-red-500 to-rose-500 text-white hover:from-red-600 hover:to-rose-600'
+                      }
+                    `}
+                  >
+                    {isSelected ? 'Selected ✓' : isOutOfStock ? 'Out of Stock' : 'Select This Basket'}
+                  </button>
                 </div>
               </motion.div>
             );
@@ -404,7 +482,7 @@ const FreeSamplesPage: React.FC = () => {
             {/* Instructions */}
             <div className="text-center mb-4">
               <p className="text-gray-600 text-sm">
-                Choose what you'd like to do with your selected samples:
+                Choose what you'd like to do with your selected basket:
               </p>
             </div>
             
@@ -412,40 +490,40 @@ const FreeSamplesPage: React.FC = () => {
               {/* Continue without any product */}
               <button
                 onClick={handleContinueWithoutProducts}
-                disabled={selectedItems.length === 0 || loading}
+                disabled={!selectedBasket || loading}
                 className={`
                   flex-1 px-6 py-4 rounded-lg font-semibold flex items-center justify-center gap-2 transition-all duration-300
-                  ${selectedItems.length > 0
+                  ${selectedBasket
                     ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-xl transform hover:scale-105'
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   }
                 `}
               >
                 <Gift className="h-5 w-5" />
-                {loading ? 'Processing...' : `Order ${selectedItems.length} Free Samples Only`}
+                {loading ? 'Processing...' : selectedBasket ? `Order Basket Samples Only` : 'Select a Basket First'}
               </button>
               
               {/* Continue to order with products */}
               <button
                 onClick={handleContinueWithProducts}
-                disabled={selectedItems.length === 0}
+                disabled={!selectedBasket}
                 className={`
                   flex-1 px-6 py-4 rounded-lg font-semibold flex items-center justify-center gap-2 transition-all duration-300
-                  ${selectedItems.length > 0
+                  ${selectedBasket
                     ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:from-green-700 hover:to-emerald-700 shadow-lg hover:shadow-xl transform hover:scale-105'
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   }
                 `}
               >
                 <ShoppingBag className="h-5 w-5" />
-                Add Samples + Shop for 10% OFF
+                Add Basket + Shop for 10% OFF
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Sample Limit Popup */}
+      {/* Basket Unavailable Popup */}
       <AnimatePresence>
         {showLimitPopup && (
           <motion.div
@@ -460,14 +538,11 @@ const FreeSamplesPage: React.FC = () => {
                   <AlertCircle className="h-5 w-5 text-red-600" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900 mb-1">Sample Limit Reached</h3>
+                  <h3 className="font-semibold text-gray-900 mb-1">Basket Unavailable</h3>
                   <p className="text-sm text-gray-600 mb-3">
-                    You can only select up to 7 free samples. Please remove an item to add a new one.
+                    This basket is currently out of stock. Please choose a different basket from the available options.
                   </p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-red-600 font-medium">
-                      {selectedItems.length}/7 selected
-                    </span>
+                  <div className="flex items-center justify-end">
                     <button
                       onClick={() => setShowLimitPopup(false)}
                       className="text-gray-400 hover:text-gray-600 transition-colors"

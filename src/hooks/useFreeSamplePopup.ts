@@ -28,19 +28,19 @@ export const useFreeSamplePopup = (): UseFreeSamplePopupReturn => {
     setHasBeenShown(popupShown);
     setHasBeenClaimed(popupClaimed);
 
-    // Show popup for first-time visitors after a short delay
+    // Show popup on every page load/refresh unless permanently dismissed
     // Only show if:
-    // 1. Not shown before OR not dismissed permanently
-    // 2. Not claimed before
-    // 3. Not currently on login/register pages
+    // 1. Not permanently dismissed (user clicked "Maybe Later" allows it to show again)
+    // 2. Not currently on login/register/free-samples pages
     const currentPath = window.location.pathname;
-    const isAuthPage = ['/login', '/register', '/forgot-password'].includes(currentPath);
+    const isAuthPage = ['/login', '/register', '/forgot-password', '/free-samples'].includes(currentPath);
     
-    if (!popupClaimed && !isAuthPage && (!popupShown || !popupDismissed)) {
-      // Show popup after 2 seconds delay for better UX
+    // Show popup even if claimed before, but not if permanently dismissed or on auth pages
+    if (!isAuthPage && !popupDismissed) {
+      // Show popup after 3 seconds delay for better UX
       const timer = setTimeout(() => {
         setIsVisible(true);
-      }, 2000);
+      }, 3000);
 
       return () => clearTimeout(timer);
     }
@@ -69,7 +69,7 @@ export const useFreeSamplePopup = (): UseFreeSamplePopupReturn => {
     // Show success message
     const successMessage = document.createElement('div');
     successMessage.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
-    successMessage.innerHTML = '🎉 Free sample added to cart!';
+    successMessage.innerHTML = '🎉 Redirecting to free samples page!';
     document.body.appendChild(successMessage);
     
     // Remove success message after 3 seconds
@@ -108,7 +108,14 @@ export const resetPopupState = (): void => {
   localStorage.removeItem(POPUP_SHOWN_KEY);
   localStorage.removeItem(POPUP_DISMISSED_KEY);
   localStorage.removeItem(POPUP_CLAIMED_KEY);
+  console.log('🧹 Popup state reset - popup will show again on next page load');
 };
+
+// Make it available globally for debugging
+if (typeof window !== 'undefined') {
+  (window as any).resetPopupState = resetPopupState;
+  console.log('🛠️ Debug: You can reset popup state by running: resetPopupState()');
+}
 
 // Show popup again (useful if user wants to see it again)
 export const triggerPopupAgain = (): void => {

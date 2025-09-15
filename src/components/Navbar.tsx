@@ -45,36 +45,32 @@ const Navbar: React.FC = () => {
       <header className="fixed top-0 z-50 w-full backdrop-blur-xl bg-white/90 border-b border-gray-200 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Logo */}
-        <Link to="/" className="flex items-center gap-3 group">
+        <Link to="/" className="flex items-center group">
           <div className="h-10 w-10 rounded-full bg-gradient-to-r from-red-600 to-amber-600 shadow-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
             <span className="text-white font-bold text-lg tracking-wide">SR</span>
-          </div>
-          <div className="hidden sm:block">
-            <span className="font-extrabold text-xl text-gray-800 group-hover:text-red-600 transition-colors">
-              Shree Raaga SWAAD GHAR
-            </span>
-            <p className="text-xs text-gray-500 -mt-1">Authentic Traditional Products</p>
           </div>
         </Link>
 
         {/* Navigation */}
-        <nav className="hidden md:flex items-center gap-8 text-sm font-semibold text-gray-700">
-          <a href="/#home" className="hover:text-red-600 transition-colors duration-200">Home</a>
-          <a href="/#categories" className="hover:text-red-600 transition-colors duration-200">Categories</a>
-          <a href="/#about" className="hover:text-red-600 transition-colors duration-200">About</a>
-          <a href="/#contact" className="hover:text-red-600 transition-colors duration-200">Contact</a>
-          {/* Special Offer Button - Only for eligible users */}
-          {profile?.isOfferEligible && !profile.hasUsedOffer && (
-            <button
-              onClick={() => setShowOfferModal(true)}
-              className="relative flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 animate-pulse"
-            >
-              <Gift className="h-4 w-4" />
-              <span className="hidden lg:inline">50g FREE!</span>
-              <Sparkles className="h-3 w-3 animate-spin" />
-              <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-bounce"></div>
-            </button>
-          )}
+        <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-gray-700">
+          <Link to="/" className="hover:text-red-600 transition-colors duration-200">Home</Link>
+          <Link to="/category/mix-pickle" className="hover:text-red-600 transition-colors duration-200">Mix & Pickle</Link>
+          <Link to="/category/powder" className="hover:text-red-600 transition-colors duration-200">Powder</Link>
+          <Link to="/category/appalam" className="hover:text-red-600 transition-colors duration-200">Appalam</Link>
+          <Link to="/category/coffee" className="hover:text-red-600 transition-colors duration-200">Coffee</Link>
+          <a href="#about" className="hover:text-red-600 transition-colors duration-200">About</a>
+          <a href="#contact" className="hover:text-red-600 transition-colors duration-200">Contact</a>
+          
+          {/* 50g FREE Badge - Always visible */}
+          <button
+            onClick={() => setShowOfferModal(true)}
+            className="relative flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 animate-pulse"
+          >
+            <Gift className="h-3.5 w-3.5" />
+            <span>50g FREE!</span>
+            <Sparkles className="h-3 w-3 animate-spin" />
+            <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full animate-bounce"></div>
+          </button>
         </nav>
 
         {/* Mobile Menu Button */}
@@ -205,21 +201,42 @@ const Navbar: React.FC = () => {
       {/* Mobile Menu */}
       {isMobileMenuOpen && (
         <div className="md:hidden fixed top-16 left-0 right-0 bg-white border-b border-gray-200 shadow-lg z-40">
-          <div className="px-4 py-4 space-y-3">
-            <a 
-              href="/#home" 
+          <div className="px-4 py-4 space-y-2">
+            <Link 
+              to="/" 
               className="block px-4 py-2 text-gray-700 hover:text-red-600 hover:bg-gray-50 rounded-lg transition-colors duration-200"
               onClick={() => setIsMobileMenuOpen(false)}
             >
               Home
-            </a>
-            <a 
-              href="/#categories" 
+            </Link>
+            <Link 
+              to="/category/mix-pickle"
               className="block px-4 py-2 text-gray-700 hover:text-red-600 hover:bg-gray-50 rounded-lg transition-colors duration-200"
               onClick={() => setIsMobileMenuOpen(false)}
             >
-              Categories
-            </a>
+              Mix & Pickle
+            </Link>
+            <Link 
+              to="/category/powder"
+              className="block px-4 py-2 text-gray-700 hover:text-red-600 hover:bg-gray-50 rounded-lg transition-colors duration-200"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              Powder
+            </Link>
+            <Link 
+              to="/category/appalam"
+              className="block px-4 py-2 text-gray-700 hover:text-red-600 hover:bg-gray-50 rounded-lg transition-colors duration-200"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              Appalam
+            </Link>
+            <Link 
+              to="/category/coffee"
+              className="block px-4 py-2 text-gray-700 hover:text-red-600 hover:bg-gray-50 rounded-lg transition-colors duration-200"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              Coffee
+            </Link>
             <a 
               href="/#about" 
               className="block px-4 py-2 text-gray-700 hover:text-red-600 hover:bg-gray-50 rounded-lg transition-colors duration-200"
@@ -235,20 +252,18 @@ const Navbar: React.FC = () => {
               Contact
             </a>
             
-            {/* Mobile Special Offer Button */}
-            {profile?.isOfferEligible && !profile.hasUsedOffer && (
-              <button
-                onClick={() => {
-                  setShowOfferModal(true);
-                  setIsMobileMenuOpen(false);
-                }}
-                className="w-full flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-bold shadow-lg transition-all duration-300"
-              >
-                <Gift className="h-4 w-4" />
-                <span>50g FREE!</span>
-                <Sparkles className="h-3 w-3" />
-              </button>
-            )}
+            {/* Mobile 50g FREE Badge - Always visible */}
+            <button
+              onClick={() => {
+                setShowOfferModal(true);
+                setIsMobileMenuOpen(false);
+              }}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-bold shadow-lg transition-all duration-300 mt-3"
+            >
+              <Gift className="h-4 w-4" />
+              <span>50g FREE!</span>
+              <Sparkles className="h-3 w-3" />
+            </button>
             
             {/* Mobile User Options */}
             {profile ? (

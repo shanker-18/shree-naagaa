@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, Gift } from 'lucide-react';
+import { X, Gift, Sparkles, Star } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { useDemoContext } from '../contexts/DemoContext';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface FreeSamplePopupProps {
   isVisible: boolean;
@@ -11,19 +11,18 @@ interface FreeSamplePopupProps {
 }
 
 const FreeSamplePopup: React.FC<FreeSamplePopupProps> = ({ isVisible, onClose, onClaim }) => {
-  const { user } = useAuth();
+  const { user, profile, updateProfile } = useAuth();
   const navigate = useNavigate();
-  const { addToCart } = useDemoContext();
-  const [isClosing, setIsClosing] = useState(false);
+  const [claiming, setClaiming] = useState(false);
 
   // Handle claim button click
-  const handleClaimClick = () => {
+  const handleClaimClick = async () => {
     if (!user) {
       // User not logged in - redirect to login
       navigate('/login', { 
         state: { 
-          returnTo: '/free-sample',
-          message: 'Please login to claim your free sample' 
+          returnTo: '/free-samples',
+          message: 'Please login first to claim your free samples' 
         }
       });
       onClose();
@@ -31,46 +30,30 @@ const FreeSamplePopup: React.FC<FreeSamplePopupProps> = ({ isVisible, onClose, o
     }
 
     // User is logged in - check if they've already used the offer
-    const savedProfile = localStorage.getItem(`profile_${user.id}`);
-    if (savedProfile) {
-      const profile = JSON.parse(savedProfile);
-      if (profile.hasUsedOffer) {
-        alert('You have already claimed your free sample offer!');
-        onClose();
-        return;
-      }
+    if (profile?.hasUsedFreeSamples) {
+      // Show nice message and redirect to free samples page anyway
+      navigate('/free-samples', { state: { fromOffer: true } });
+      onClose();
+      return;
     }
 
-    // Add free sample to cart
-    const freeSample = {
-      id: 'free-sample-mix',
-      name: '50g Mixed Traditional Spices - Free Sample',
-      price: 0,
-      originalPrice: 150,
-      image: '/images/free-sample.jpg',
-      category: 'Free Sample',
-      description: 'Premium quality traditional spices sample pack',
-      weight: '50g',
-      quantity: 1,
-      isFree: true
-    };
-
-    addToCart(freeSample);
-    onClaim();
+    setClaiming(true);
     
-    // Show success message and navigate to cart
-    setTimeout(() => {
-      navigate('/cart');
-    }, 1000);
+    try {
+      // Navigate to free samples page to let user select samples
+      onClose();
+      navigate('/free-samples', { state: { fromOffer: true } });
+      onClaim();
+    } catch (error) {
+      console.error('Error navigating to free samples:', error);
+    } finally {
+      setClaiming(false);
+    }
   };
 
-  // Handle close with animation
+  // Handle close
   const handleClose = () => {
-    setIsClosing(true);
-    setTimeout(() => {
-      onClose();
-      setIsClosing(false);
-    }, 300);
+    onClose();
   };
 
   // Prevent body scroll when popup is open
@@ -89,19 +72,26 @@ const FreeSamplePopup: React.FC<FreeSamplePopupProps> = ({ isVisible, onClose, o
   if (!isVisible) return null;
 
   return (
-    <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${
-      isClosing ? 'animate-fadeOut' : 'animate-fadeIn'
-    }`}>
-      {/* Backdrop */}
-      <div 
-        className="absolute inset-0 bg-black bg-opacity-50 backdrop-blur-sm"
-        onClick={handleClose}
-      />
-      
-      {/* Popup Content */}
-      <div className={`relative bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden ${
-        isClosing ? 'animate-slideOut' : 'animate-slideIn'
-      }`}>
+    <AnimatePresence>
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      >
+        {/* Backdrop */}
+        <div 
+          className="absolute inset-0 bg-black bg-opacity-50 backdrop-blur-sm"
+          onClick={handleClose}
+        />
+        
+        {/* Popup Content */}
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.9, y: 20 }}
+          className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden"
+        >
         {/* Close Button */}
         <button
           onClick={handleClose}
@@ -164,11 +154,21 @@ const FreeSamplePopup: React.FC<FreeSamplePopupProps> = ({ isVisible, onClose, o
           <div className="space-y-3">
             <button
               onClick={handleClaimClick}
-              className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-4 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
+              disabled={claiming}
+              className="w-full bg-green-500 hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-4 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
             >
-              <Gift className="w-5 h-5" />
+              {claiming ? (
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+              ) : (
+                <Gift className="w-5 h-5" />
+              )}
               <span>
-                {user ? 'Claim Your Free Sample' : 'Login to Claim'}
+                {claiming
+                  ? 'Redirecting...'
+                  : user
+                  ? 'Claim Your Free Sample'
+                  : 'Login to Claim'
+                }
               </span>
             </button>
             
@@ -180,58 +180,9 @@ const FreeSamplePopup: React.FC<FreeSamplePopupProps> = ({ isVisible, onClose, o
             </button>
           </div>
         </div>
-      </div>
-
-      <style jsx>{`
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        
-        @keyframes fadeOut {
-          from { opacity: 1; }
-          to { opacity: 0; }
-        }
-        
-        @keyframes slideIn {
-          from { 
-            transform: translateY(-50px) scale(0.95);
-            opacity: 0;
-          }
-          to { 
-            transform: translateY(0) scale(1);
-            opacity: 1;
-          }
-        }
-        
-        @keyframes slideOut {
-          from { 
-            transform: translateY(0) scale(1);
-            opacity: 1;
-          }
-          to { 
-            transform: translateY(-50px) scale(0.95);
-            opacity: 0;
-          }
-        }
-        
-        .animate-fadeIn {
-          animation: fadeIn 0.3s ease-out;
-        }
-        
-        .animate-fadeOut {
-          animation: fadeOut 0.3s ease-in;
-        }
-        
-        .animate-slideIn {
-          animation: slideIn 0.3s ease-out;
-        }
-        
-        .animate-slideOut {
-          animation: slideOut 0.3s ease-in;
-        }
-      `}</style>
-    </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
   );
 };
 

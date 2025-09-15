@@ -145,6 +145,7 @@ const OrderSummary: React.FC = () => {
           console.error('❌ Error sending client-side email notifications:', emailErr);
         }
         
+        console.log('🎉 Order placed successfully, setting orderPlaced to true');
         setOrderPlaced(true);
       } else {
         console.error('Error creating order:', result.message);

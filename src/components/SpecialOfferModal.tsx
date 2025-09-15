@@ -17,27 +17,20 @@ const SpecialOfferModal: React.FC<SpecialOfferModalProps> = ({ isOpen, onClose }
   const [claiming, setClaiming] = useState(false);
 
   const handleClaimOffer = async () => {
-    if (!profile || profile.hasUsedOffer) return;
-
     setClaiming(true);
     
     try {
-      // Mark offer as claimed (but not used yet)
-      await updateProfile({ hasUsedOffer: false, offerClaimed: true });
-
       // Close modal and navigate to free samples page
       onClose();
       navigate('/free-samples', { state: { fromOffer: true } });
     } catch (error) {
-      console.error('Error claiming offer:', error);
+      console.error('Error navigating to free samples:', error);
     } finally {
       setClaiming(false);
     }
   };
 
-  if (!profile?.isOfferEligible || profile.hasUsedOffer) {
-    return null;
-  }
+  // Always show the modal when opened - no restrictions
 
   return (
     <AnimatePresence>

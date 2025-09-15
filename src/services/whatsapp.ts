@@ -88,6 +88,12 @@ export const sendWhatsAppToWarehouse = async (order: WhatsAppOrder) => {
 
     console.log('🚀 Sending WhatsApp via backend API...');
     
+    // Check if WhatsApp endpoint is configured
+    if (!API_ENDPOINTS.WHATSAPP || API_ENDPOINTS.WHATSAPP.includes('undefined')) {
+      console.warn('⚠️ WhatsApp API endpoint not configured, skipping WhatsApp notification');
+      return { success: false, error: 'WhatsApp API endpoint not configured' };
+    }
+
     // Send via your backend API
     const response = await fetch(API_ENDPOINTS.WHATSAPP, {
       method: 'POST',
@@ -115,6 +121,18 @@ export const sendWhatsAppToWarehouse = async (order: WhatsAppOrder) => {
 export const sendWhatsAppToMultipleNumbers = async (order: WhatsAppOrder) => {
   try {
     console.log('📱 Preparing to send WhatsApp messages to multiple numbers...');
+    
+    // Check if WhatsApp endpoint is configured
+    if (!API_ENDPOINTS.WHATSAPP || API_ENDPOINTS.WHATSAPP.includes('undefined')) {
+      console.warn('⚠️ WhatsApp API endpoint not configured, skipping multiple WhatsApp notifications');
+      return { 
+        success: false, 
+        error: 'WhatsApp API endpoint not configured',
+        results: [],
+        errors: [],
+        summary: { total: 0, successful: 0, failed: 0 }
+      };
+    }
     
     // Format the message
     const message = formatWhatsAppMessage(order);

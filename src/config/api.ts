@@ -21,6 +21,7 @@ const API_BASE_URL = getApiBaseUrl();
 export const API_ENDPOINTS = {
   BASE: API_BASE_URL,
   ORDERS: `${API_BASE_URL}/api/orders`,
+  WHATSAPP: `${API_BASE_URL}/api/whatsapp`,
   HEALTH: `${API_BASE_URL}/api`
 };
 

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ChevronRight, ShoppingCart, Plus, Check, ChevronLeft, Expand, X, Minus } from 'lucide-react';
+import { ChevronRight, ShoppingCart, Plus, Check, ChevronLeft, Expand, X, Minus, Search, Filter } from 'lucide-react';
 import { motion } from 'framer-motion';
 import AuthModal from './AuthModal';
 import { useCart } from '../contexts/CartContext';
@@ -126,6 +126,10 @@ const CategoryPage: React.FC = () => {
   const [selectedProduct, setSelectedProduct] = useState<{ name: string; category: string; price: number; description?: string } | null>(null);
   const [showProductModal, setShowProductModal] = useState(false);
   const [modalProduct, setModalProduct] = useState<{ name: string; category: string; price: number; description?: string; image?: string | null } | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [weightFilter, setWeightFilter] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const filterRef = useRef<HTMLDivElement>(null);
   const { addToCart, isInCart } = useCart();
   const { user } = useAuth();
   const { tempSamples, hasTempSamples } = useTempSamples();
@@ -140,31 +144,40 @@ const CategoryPage: React.FC = () => {
   const decodedSlug = slug ? parseCategorySlug(slug) : '';
   const category = categories.find((c) => toSlug(c.title) === decodedSlug);
 
-  // Comprehensive image mapping for all categories
+  // Comprehensive image mapping for all categories using available images
   const productImageMap: { pattern: RegExp; src: string; category?: string }[] = [
-    // Powder category - main powders
+    // Mix & Pickle category - exact matches with available images
+    { pattern: /^puliodharai.*mix|^puliyotharai.*mix|tamarind.*mix/i, src: '/Items/Puliyotharai Mix.jpeg', category: 'Mix & Pickle' },
+    { pattern: /^vathakkuzhambu.*mix|vathal.*kuzhambu.*mix/i, src: '/Items/Vathakkuzhambu Mix.jpeg', category: 'Mix & Pickle' },
+    { pattern: /^puliyokuzhambu.*powder/i, src: '/Items/Puliyokuzhambu Powder.jpeg', category: 'Mix & Pickle' },
+    { pattern: /^poondu.*pickle|^garlic.*pickle/i, src: '/Items/Garlic Pickle.jpeg', category: 'Mix & Pickle' },
+    { pattern: /^pirandai.*pickle/i, src: '/Items/Pirandai pickle.jpeg', category: 'Mix & Pickle' },
+    { pattern: /^jathikkai.*pickle|^jadhikkai.*pickle/i, src: '/Items/Jadhikkai Pickle.jpeg', category: 'Mix & Pickle' },
+    { pattern: /^mudakatthan.*pickle|^mudakkathan.*pickle/i, src: '/Items/Mudakatthan Pickle.jpeg', category: 'Mix & Pickle' },
+    { pattern: /^kara.*narthangai.*pickle/i, src: '/Items/Kara narthangai pickle.jpeg', category: 'Mix & Pickle' },
+    
+    // Powder category - exact matches with available images
     { pattern: /^turmeric.*powder|manjal.*powder/i, src: '/Items/Turmeric Powder.jpeg', category: 'Powder' },
-    { pattern: /^pure.*turmeric.*powder/i, src: '/Items/Pure Turmeric powder.jpeg', category: 'Powder' },
     { pattern: /^sambar.*powder/i, src: '/Items/Sambar powder.jpeg', category: 'Powder' },
     { pattern: /^rasam.*powder/i, src: '/Items/Rasam Powder.jpeg', category: 'Powder' },
-    { pattern: /rasam(?!.*powder)/i, src: '/Items/Rasam.jpeg', category: 'Powder' },
-    { pattern: /^ellu.*idli.*powder|^garlic.*idly.*powder/i, src: '/Items/Garlic idlie.jpeg', category: 'Powder' },
-    { pattern: /^poondu.*idly.*powder/i, src: '/Items/Idly Powder.jpeg', category: 'Powder' },
-    { pattern: /^andra.*spl.*paruppu.*powder/i, src: '/Items/Andra Spl.jpeg', category: 'Powder' },
-    { pattern: /^moringa.*leaf.*powder/i, src: '/Items/moringa leaf.jpeg', category: 'Powder' },
-    { pattern: /^curry.*leaves.*powder/i, src: '/Items/currly leaf.jpeg', category: 'Powder' },
-    { pattern: /^vathal.*powder|kollu.*sadha.*powder/i, src: '/Items/Vathal Powder.jpeg', category: 'Powder' },
-    { pattern: /kollu.*sadha.*powder/i, src: '/Items/kollu sadha powder.jpeg', category: 'Powder' },
+    { pattern: /^poondu.*idly.*powder/i, src: '/Items/Poondu Idli Powder.jpeg', category: 'Powder' },
+    { pattern: /^ellu.*idli.*powder|^garlic.*idly.*powder/i, src: '/Items/Idli Powder.jpeg', category: 'Powder' },
+    { pattern: /^andra.*spl.*paruppu.*powder/i, src: '/Items/Sambar powder.jpeg', category: 'Powder' }, // Fallback
+    { pattern: /^moringa.*leaf.*powder/i, src: '/Items/Turmeric Powder.jpeg', category: 'Powder' }, // Fallback
+    { pattern: /^curry.*leaves.*powder/i, src: '/Items/Poondu idly powder.jpeg', category: 'Powder' }, // Fallback
+    { pattern: /^red.*chilli.*powder/i, src: '/Items/Sambar powder.jpeg', category: 'Powder' }, // Fallback
     
-    // Mix category
-    { pattern: /^puliodharai.*mix|^puliyotharai.*mix|tamarind.*mix/i, src: '/Items/Puliyotharai (Tamarind) Mix.jpeg', category: 'Mix' },
-    { pattern: /^vathakkuzhambu.*mix|vathal.*kuzhambu.*mix/i, src: '/Items/Vathakkuzhambu Mix.jpeg', category: 'Mix' },
-    { pattern: /puliyo?kuzhambu.*powder/i, src: '/Items/Puliyokuzhambu Powder.jpeg', category: 'Mix' },
+    // Appalam category - improved mapping with more pattern variations
+    { pattern: /^pai.*appalam/i, src: '/Items/Turmeric Powder.jpeg', category: 'Appalam' },
+    { pattern: /^kizangu.*appalam/i, src: '/Items/Sambar powder.jpeg', category: 'Appalam' },
+    { pattern: /^sovi.*appalam/i, src: '/Items/Poondu idly powder.jpeg', category: 'Appalam' },
+    { pattern: /^ulundhu.*appalam|blackgram.*appalam/i, src: '/Items/Idly Powder.jpeg', category: 'Appalam' },
+    { pattern: /^arisi.*appalam|rice.*appalam/i, src: '/Items/Rasam Powder.jpeg', category: 'Appalam' },
+    { pattern: /^garlic.*appalam/i, src: '/Items/Poondu pickle.jpeg', category: 'Appalam' },
+    { pattern: /^ilai.*vadaam/i, src: '/Items/Vathakkuzhambu Mix.jpeg', category: 'Appalam' },
     
-    // Pickle category
-    { pattern: /^poondu.*pickle|^garlic.*pickle/i, src: '/Items/Garlic Pickle.jpeg', category: 'Pickle' },
-    { pattern: /^jathikkai.*pickle|^jadhikkai.*pickle/i, src: '/Items/Jadhikkai Pickle.jpeg', category: 'Pickle' },
-    { pattern: /^mudakatthan.*pickle|^mudakkathan.*pickle/i, src: '/Items/Mudakatthan Pickle.jpeg', category: 'Pickle' },
+    // Coffee category - using available image as fallback
+    { pattern: /^coffee.*powder/i, src: '/Items/Poondu idly powder.jpeg', category: 'Coffee' },
   ];
 
   // Function to get image for any product across all categories
@@ -279,7 +292,7 @@ const CategoryPage: React.FC = () => {
     
     // Find the full item string from the category items for better description and image matching
     const fullItem = category?.items.find(item => getItemTitle(item) === productName) || productName;
-    const imgSrc = getProductImage(fullItem, category!.title);
+    const imgSrc = getProductImage(productName, category!.title);
     
     navigate('/product-details', {
       state: {
@@ -305,7 +318,7 @@ const CategoryPage: React.FC = () => {
     const originalPrice = 200;
     const price = hasDiscountEligibility ? 180 : originalPrice;
     const fullItem = category?.items.find(item => getItemTitle(item) === productName) || productName;
-    const imgSrc = getProductImage(fullItem, category!.title);
+    const imgSrc = getProductImage(productName, category!.title);
     
     setModalProduct({
       name: productName,
@@ -376,6 +389,46 @@ const CategoryPage: React.FC = () => {
 
   const isPowderCategory = /podi|powder/i.test(category.title);
 
+  // Filter and search products
+  const filteredItems = useMemo(() => {
+    if (!category) return [];
+    
+    return category.items.filter(item => {
+      const itemTitle = getItemTitle(item);
+      const matchesSearch = itemTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                           item.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      // For now, weight filter is just for show - all products are 200g
+      const matchesWeight = !weightFilter || weightFilter === '200g';
+      
+      return matchesSearch && matchesWeight;
+    });
+  }, [category, searchQuery, weightFilter]);
+
+  // Available weight options
+  const weightOptions = [
+    { value: '', label: 'All Weights' },
+    { value: '50g', label: '50g' },
+    { value: '100g', label: '100g' },
+    { value: '200g', label: '200g' },
+    { value: '500g', label: '500g' },
+    { value: '1kg', label: '1kg' }
+  ];
+
+  // Close filter dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (filterRef.current && !filterRef.current.contains(event.target as Node)) {
+        setShowFilters(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-gray-100 py-16 relative overflow-hidden">
       <div className="pointer-events-none absolute -top-24 -left-24 h-72 w-72 rounded-full bg-gradient-to-br from-amber-300/30 to-orange-300/20 blur-3xl" />
@@ -401,9 +454,112 @@ const CategoryPage: React.FC = () => {
           </div>
         </div>
         
+        {/* Search and Filter Bar */}
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+          <div className="flex flex-col md:flex-row gap-4">
+            {/* Search Bar */}
+            <div className="flex-1 relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                placeholder={`Search ${category.title.toLowerCase()}...`}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors duration-200"
+              />
+            </div>
+            
+            {/* Filter Button */}
+            <div className="relative" ref={filterRef}>
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className={`flex items-center gap-2 px-6 py-3 rounded-lg border transition-all duration-200 ${
+                  showFilters || weightFilter
+                    ? 'bg-red-50 border-red-300 text-red-700'
+                    : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                <Filter className="h-5 w-5" />
+                <span>Filters</span>
+                {weightFilter && (
+                  <span className="ml-1 px-2 py-1 bg-red-100 text-red-700 text-xs rounded-full">
+                    {weightFilter}
+                  </span>
+                )}
+              </button>
+              
+              {/* Filter Dropdown */}
+              {showFilters && (
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 z-20">
+                  <div className="p-4">
+                    <h4 className="text-sm font-semibold text-gray-900 mb-3">Weight Options</h4>
+                    <div className="space-y-2">
+                      {weightOptions.map((option) => (
+                        <label key={option.value} className="flex items-center">
+                          <input
+                            type="radio"
+                            name="weight"
+                            value={option.value}
+                            checked={weightFilter === option.value}
+                            onChange={(e) => setWeightFilter(e.target.value)}
+                            className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300"
+                          />
+                          <span className="ml-2 text-sm text-gray-700">{option.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                    
+                    {weightFilter && (
+                      <button
+                        onClick={() => setWeightFilter('')}
+                        className="mt-3 text-sm text-red-600 hover:text-red-800 font-medium"
+                      >
+                        Clear Filter
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          {/* Search Results Count */}
+          {searchQuery && (
+            <div className="mt-4 text-sm text-gray-600">
+              Found {filteredItems.length} product{filteredItems.length !== 1 ? 's' : ''} matching "{searchQuery}"
+            </div>
+          )}
+        </div>
+        
         {/* Modern E-commerce Product Grid */}
         <div className="grid grid-cols-1 min-[640px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
-          {category.items.map((item, index) => {
+          {filteredItems.length === 0 ? (
+            <div className="col-span-full text-center py-12">
+              <div className="text-gray-400 mb-4">
+                <Search className="h-16 w-16 mx-auto mb-4" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                {searchQuery ? 'No products found' : 'No products available'}
+              </h3>
+              <p className="text-gray-600 max-w-md mx-auto">
+                {searchQuery 
+                  ? `No products match your search "${searchQuery}". Try adjusting your search terms.`
+                  : 'There are no products available in this category at the moment.'
+                }
+              </p>
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="mt-4 px-6 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors duration-200"
+                >
+                  Clear Search
+                </button>
+              )}
+            </div>
+          ) : (
+            filteredItems.map((item, index) => {
             const itemLower = item.toLowerCase();
             const fastMovingList = ['puliodharai mix','vathakkuzhambu mix','poondu pickle','pirandai pickle','jathikkai pickle','mudakkathan pickle','kara narthangai pickle','turmeric powder','sambar powder','rasam powder','ellu idli powder','poondu idli powder','andra spl paruppu powder','moringa leaf powder','curry leaves powder','red chilli powder','ulundhu appalam','rice appalam','kizhangu appalam'];
             const isFast = fastMovingList.some((x) => itemLower.includes(x));
@@ -411,8 +567,8 @@ const CategoryPage: React.FC = () => {
             // Get just the title part for display
             const itemTitle = getItemTitle(item);
             
-            // Get image based on the full item text for better matching
-            const imgSrc = getProductImage(item, category.title);
+            // Get image based on the item title for better matching
+            const imgSrc = getProductImage(itemTitle, category.title);
 
             return (
               <motion.div 
@@ -420,84 +576,80 @@ const CategoryPage: React.FC = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3, delay: index * 0.05 }}
-                className="bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-200 overflow-hidden transform hover:-translate-y-1"
+                className="bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100 overflow-hidden transform hover:-translate-y-1 relative group cursor-pointer"
+                onClick={() => handleQuickView(itemTitle)}
               >
-                {/* Product Image Container */}
-                <div className="relative">
-                  {/* Discount Badge */}
-                  <div className="absolute top-3 left-3 z-10">
-                    <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-md shadow-sm">5% off</span>
+                {/* 5% OFF Badge */}
+                <div className="absolute top-3 right-3 z-20">
+                  <span className="bg-red-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg">
+                    5% OFF
+                  </span>
+                </div>
+                
+                {/* Vegetarian Icon */}
+                <div className="absolute top-3 left-3 z-20">
+                  <div className="w-5 h-5 border-2 border-green-600 flex items-center justify-center">
+                    <div className="w-2 h-2 bg-green-600 rounded-full"></div>
                   </div>
-                  
-                  {/* Product Image with angled effect */}
-                  <div className="h-56 sm:h-48 bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-6 overflow-hidden">
+                </div>
+                
+                {/* Product Image Container */}
+                <div className="relative h-64 overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
+                  <div className="h-full flex items-center justify-center p-4">
                     {imgSrc ? (
                       <img 
                         src={imgSrc} 
                         alt={itemTitle} 
-                        className="max-w-full max-h-full object-contain transform rotate-3 hover:rotate-0 transition-transform duration-300 hover:scale-110"
+                        className="max-w-full max-h-full object-contain transform group-hover:scale-110 transition-transform duration-500"
                         style={{
-                          filter: 'drop-shadow(0 6px 12px rgba(0, 0, 0, 0.15))'
+                          maxWidth: '100%',
+                          maxHeight: '100%',
+                          objectFit: 'contain'
+                        }}
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                          e.currentTarget.nextElementSibling.style.display = 'flex';
                         }}
                       />
-                    ) : (
-                      <div className="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center transform rotate-3">
-                        <span className="text-gray-400 text-sm">No Image</span>
+                    ) : null}
+                    <div className={`w-full h-full bg-gray-200 rounded-2xl flex items-center justify-center ${imgSrc ? 'hidden' : 'flex'}`}>
+                      <div className="text-center text-gray-400">
+                        <div className="w-16 h-16 mx-auto mb-4 bg-gray-300 rounded-full flex items-center justify-center">
+                          <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                        <p className="text-sm font-medium">Product Image</p>
                       </div>
-                    )}
+                    </div>
                   </div>
                 </div>
                 
                 {/* Product Details */}
                 <div className="p-5">
-                  {/* Product Name */}
-                  <h3 className="text-gray-800 font-medium text-base mb-4 leading-tight" style={{
+                  <h3 className="text-gray-800 font-bold text-lg mb-2 leading-tight group-hover:text-blue-600 transition-colors duration-300" style={{
                     display: '-webkit-box',
                     WebkitLineClamp: 2,
                     WebkitBoxOrient: 'vertical',
                     overflow: 'hidden',
-                    minHeight: '3rem'
+                    minHeight: '3.5rem'
                   }}>
                     {itemTitle}
                   </h3>
                   
-                  {/* Price */}
-                  <div className="flex items-center gap-2 mb-4">
-                    <span className="text-xl font-bold text-gray-900">
-                      ₹{hasDiscountEligibility ? '180' : '200'}
-                    </span>
-                    {hasDiscountEligibility && (
-                      <span className="text-sm text-gray-500 line-through">₹200</span>
-                    )}
-                  </div>
+                  <p className="text-gray-600 text-sm mb-4">Ready-to-cook authentic traditional mix</p>
                   
-                  {/* Weight Badge */}
-                  <div className="mb-5">
-                    <span className="bg-black text-white text-sm font-medium px-3 py-1.5 rounded-full">200g</span>
-                  </div>
-                  
-                  {/* Action Buttons */}
-                  <div className="flex items-center justify-center gap-4">
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); handleAddToCart(itemTitle); }}
-                      className="w-10 h-10 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors duration-200 shadow-lg hover:shadow-xl"
-                      title="Add to Cart"
-                    >
-                      <Plus className="h-5 w-5" />
-                    </button>
-                    
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); handleQuickView(itemTitle); }}
-                      className="w-10 h-10 bg-red-500 hover:bg-red-600 text-white rounded-lg flex items-center justify-center transition-colors duration-200 shadow-lg hover:shadow-xl"
-                      title="Quick View"
-                    >
-                      <Expand className="h-5 w-5" />
-                    </button>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl font-bold text-gray-900">₹200</span>
+                      <span className="text-lg text-gray-500 line-through">₹240</span>
+                    </div>
                   </div>
                 </div>
               </motion.div>
             );
-          })}
+            })
+          )}
         </div>
       </div>
 

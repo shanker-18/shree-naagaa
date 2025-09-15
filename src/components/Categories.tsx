@@ -12,19 +12,19 @@ const getItemTitle = (item: string): string => {
 // Comprehensive image mapping for all categories
 const productImageMap: { pattern: RegExp; src: string; category?: string }[] = [
   // Powders category
-  { pattern: /turmeric|manjal/i, src: '/Items/Turmeric Powder.jpeg', category: 'Powders' },
-  { pattern: /idli|idly/i, src: '/Items/Idly Powder.jpeg', category: 'Powders' },
-  { pattern: /rasam/i, src: '/Items/Rasam Powder.jpeg', category: 'Powders' },
-  { pattern: /puliyo?kuzhambu|puli\s*kuzhambu/i, src: '/Items/Puliyokuzhambu Powder.jpeg', category: 'Powders' },
+  { pattern: /turmeric|manjal/i, src: '/Items/Turmeric Powder.jpeg', category: 'Powder' },
+  { pattern: /idli|idly/i, src: '/Items/Idli Powder.jpeg', category: 'Powder' },
+  { pattern: /rasam/i, src: '/Items/Rasam Powder.jpeg', category: 'Powder' },
+  { pattern: /puliyo?kuzhambu|puli\s*kuzhambu/i, src: '/Items/Puliyokuzhambu Powder.jpeg', category: 'Powder' },
   
-  // Mixes category
-  { pattern: /puliyotharai|tamarind.*mix/i, src: '/Items/Puliyotharai (Tamarind) Mix.jpeg', category: 'Mixes' },
-  { pattern: /vathakkuzhambu.*mix|vathal.*kuzhambu.*mix/i, src: '/Items/Vathakkuzhambu Mix.jpeg', category: 'Mixes' },
-  
-  // Pickles category
-  { pattern: /garlic.*pickle|poondu.*pickle/i, src: '/Items/Garlic Pickle.jpeg', category: 'Pickles' },
-  { pattern: /jadhikkai|jathikkai|nutmeg/i, src: '/Items/Jadhikkai Pickle.jpeg', category: 'Pickles' },
-  { pattern: /mudakatthan|mudakkathan/i, src: '/Items/Mudakatthan Pickle.jpeg', category: 'Pickles' },
+  // Mix & Pickle category
+  { pattern: /puliyotharai|tamarind.*mix/i, src: '/Items/Puliyotharai Mix.jpeg', category: 'Mix & Pickle' },
+  { pattern: /vathakkuzhambu.*mix|vathal.*kuzhambu.*mix/i, src: '/Items/Vathakkuzhambu Mix.jpeg', category: 'Mix & Pickle' },
+  { pattern: /garlic.*pickle|poondu.*pickle/i, src: '/Items/Garlic Pickle.jpeg', category: 'Mix & Pickle' },
+  { pattern: /pirandai.*pickle/i, src: '/Items/Pirandai pickle.jpeg', category: 'Mix & Pickle' },
+  { pattern: /jadhikkai|jathikkai|nutmeg/i, src: '/Items/Jadhikkai Pickle.jpeg', category: 'Mix & Pickle' },
+  { pattern: /mudakatthan|mudakkathan/i, src: '/Items/Mudakatthan Pickle.jpeg', category: 'Mix & Pickle' },
+  { pattern: /kara.*narthangai.*pickle/i, src: '/Items/Kara narthangai pickle.jpeg', category: 'Mix & Pickle' },
 ];
 
 // Function to get image for any product across all categories
@@ -90,7 +90,7 @@ const Categories: React.FC = () => {
                 <div className="grid grid-cols-2 gap-3 mb-4">
                   {category.items.slice(0, 4).map((item, idx) => {
                     const itemTitle = getItemTitle(item);
-                    const imgSrc = getProductImage(item, category.title);
+                    const imgSrc = getProductImage(itemTitle, category.title);
                     
                     return (
                       <div key={idx} className="bg-white rounded-lg border border-gray-200 p-2 hover:shadow-md transition-all duration-200 group">
@@ -167,7 +167,7 @@ const Categories: React.FC = () => {
                 <div className="grid grid-cols-2 gap-3 mb-4">
                   {category.items.slice(0, 4).map((item, idx) => {
                     const itemTitle = getItemTitle(item);
-                    const imgSrc = getProductImage(item, category.title);
+                    const imgSrc = getProductImage(itemTitle, category.title);
                     
                     return (
                       <div key={idx} className="bg-white rounded-lg border border-gray-200 p-2 hover:shadow-md transition-all duration-200 group">

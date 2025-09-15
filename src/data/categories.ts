@@ -13,32 +13,21 @@ export interface Category {
 
 export const categories: Category[] = [
   {
-    title: 'Mix',
-    description: 'Ready-to-cook mixes for quick authentic meals',
+    title: 'Mix & Pickle',
+    description: 'Ready-to-cook mixes and homemade pickles with traditional taste',
     icon: Package,
     gradient: 'from-amber-600 to-orange-500',
     bgColor: 'bg-amber-50',
     borderColor: 'border-amber-200',
     textColor: 'text-amber-800',
     items: [
-      'Puliodharai mix: A chemical-free mix used to prepare tamarind rice. 100 grams are sufficient for a quarter-measure of rice.',
-      'Vathakkuzhambu mix: Contains sundakkai vathal, manathakkali vathal, and garlic. Mixing 2 tablespoons with Gingelly oil and rice makes a tasty dish.'
-    ]
-  },
-  {
-    title: 'Pickle',
-    description: 'Homemade pickles with medicinal benefits and rich taste',
-    icon: Heart,
-    gradient: 'from-purple-600 to-indigo-500',
-    bgColor: 'bg-purple-50',
-    borderColor: 'border-purple-200',
-    textColor: 'text-purple-800',
-    items: [
-      'Poondu pickle: Has medicinal value for an ailing heart and removes gastritis.',
-      'Pirandai pickle: Good for digestion and helps with joint pain.',
-      'Jathikkai pickle: Aids the digestive function and has aromatic properties.',
-      'Mudakkathan pickle: Good for joint pain and has anti-inflammatory properties.',
-      'Kara narthangai pickle: Very tasty and improves digestive system function.'
+      'Puliyotharai Mix: A chemical-free mix used to prepare tamarind rice. 100 grams are sufficient for a quarter-measure of rice.',
+      'Vathakkuzhambu Mix: Contains sundakkai vathal, manathakkali vathal, and garlic. Mixing 2 tablespoons with Gingelly oil and rice makes a tasty dish.',
+      'Poondu Pickle: Has medicinal value for an ailing heart and removes gastritis.',
+      'Pirandai Pickle: Good for digestion and helps with joint pain.',
+      'Jathikkai Pickle: Aids the digestive function and has aromatic properties.',
+      'Mudakkathan Pickle: Good for joint pain and has anti-inflammatory properties.',
+      'Kara Narthangai Pickle: Very tasty and improves digestive system function.'
     ]
   },
   {
@@ -50,15 +39,17 @@ export const categories: Category[] = [
     borderColor: 'border-red-200',
     textColor: 'text-red-800',
     items: [
-      'Turmeric powder: Prepared from cleaned and dried virali turmeric tubes, ground finely without additives. Used for cooking and as a cosmetic facial application.',
-      'Sambar powder: Essential spice blend for preparing authentic South Indian sambar with perfect aroma and taste.',
-      'Rasam powder: Prepared with tomato in dhal stew. Used in rasam to make it aromatic and tasty.',
-      'Ellu idli powder: Prepared with Gingelly oil and garlic. Eaten as a side dish with Idly or Dosa.',
-      'Poondu idly powder: Special garlic-infused idly powder with medicinal properties and rich taste.',
-      'Andra spl paruppu powder: Special Andhra-style lentil powder blend for traditional recipes.',
-      'Moringa leaf powder: Nutrient-rich powder made from dried moringa leaves, packed with vitamins and minerals.',
-      'Curry leaves powder: Aromatic powder made from fresh curry leaves, adds authentic South Indian flavor.',
-      'Red Chilli powder: Made from a fine variety of chili. Used for making pickles and savory preparations.'
+      'Turmeric Powder: Prepared from cleaned and dried virali turmeric tubes, ground finely without additives. Used for cooking and as a cosmetic facial application.',
+      'Sambar Powder: Essential spice blend for preparing authentic South Indian sambar with perfect aroma and taste.',
+      'Rasam Powder: Prepared with tomato in dhal stew. Used in rasam to make it aromatic and tasty.',
+      'Idli Powder: Traditional South Indian idli podi made with authentic spices and ingredients.',
+      'Poondu Idli Powder: Special garlic-infused idli powder with medicinal properties and rich taste.',
+      'Puliyokuzhambu Powder: Traditional tamarind-based curry powder for authentic South Indian flavors.',
+      'Ellu Idli Powder: Prepared with Gingelly oil and garlic. Eaten as a side dish with Idly or Dosa.',
+      'Andra Spl Paruppu Powder: Special Andhra-style lentil powder blend for traditional recipes.',
+      'Moringa Leaf Powder: Nutrient-rich powder made from dried moringa leaves, packed with vitamins and minerals.',
+      'Curry Leaves Powder: Aromatic powder made from fresh curry leaves, adds authentic South Indian flavor.',
+      'Red Chilli Powder: Made from a fine variety of chili. Used for making pickles and savory preparations.'
     ]
   },
   {
