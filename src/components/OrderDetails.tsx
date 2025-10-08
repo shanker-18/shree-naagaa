@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
-import { User, Phone, MapPin, ShoppingBag, ArrowLeft, CheckCircle, Mail } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+import { User, Phone, MapPin, ShoppingBag, ArrowLeft, CheckCircle, Mail, Edit3 } from 'lucide-react';
+import { useAuth, Address } from '../contexts/AuthContext';
 import { useTempSamples } from '../contexts/TempSamplesContext';
 import { useCart } from '../contexts/CartContext';
 import { createOrder } from '../services/orderService';
+import AddressModal from './AddressModal';
 
 interface OrderDetailsProps {
   productName?: string;
@@ -58,7 +59,9 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const { profile, updateProfile } = useAuth();
+  const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
+  const [isUsingCustomAddress, setIsUsingCustomAddress] = useState(false);
+  const { profile, updateProfile, savedAddress, saveAddress, getSavedAddress } = useAuth();
   const { clearTempSamples, hasTempSamples } = useTempSamples();
   const { clearCart } = useCart();
 
@@ -83,18 +86,34 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
   useEffect(() => {
     // If user is authenticated, try to get their profile data
     if (isAuthenticated && profile) {
-      setFormData({
-        name: profile.name || '',
-        email: profile.email || '',
-        phone: profile.phone || '',
-        addressLine1: '',
-        addressLine2: '',
-        city: '',
-        state: profile.state || '',
-        pincode: ''
-      });
+      // Check if user has a saved address and use it
+      const userSavedAddress = getSavedAddress();
+      
+      if (userSavedAddress && !isUsingCustomAddress) {
+        setFormData({
+          name: userSavedAddress.fullName || profile.name || '',
+          email: profile.email || '',
+          phone: userSavedAddress.phone || profile.phone || '',
+          addressLine1: userSavedAddress.addressLine1 || '',
+          addressLine2: userSavedAddress.addressLine2 || '',
+          city: userSavedAddress.city || '',
+          state: userSavedAddress.state || profile.state || '',
+          pincode: userSavedAddress.pincode || ''
+        });
+      } else {
+        setFormData({
+          name: profile.name || '',
+          email: profile.email || '',
+          phone: profile.phone || '',
+          addressLine1: '',
+          addressLine2: '',
+          city: '',
+          state: profile.state || '',
+          pincode: ''
+        });
+      }
     }
-  }, [isAuthenticated, profile]);
+  }, [isAuthenticated, profile, savedAddress, isUsingCustomAddress]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -149,32 +168,34 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
       return false;
     }
     
-    // Address validation
-    if (!formData.addressLine1.trim()) {
-      setError('Address Line 1 is required');
-      return false;
-    }
-    
-    // City validation
-    if (!formData.city.trim()) {
-      setError('City is required');
-      return false;
-    }
-    
-    // State validation
-    if (!formData.state.trim()) {
-      setError('State is required');
-      return false;
-    }
-    
-    // Pincode validation
-    if (!formData.pincode.trim()) {
-      setError('Pincode is required');
-      return false;
-    }
-    if (formData.pincode.length !== 6) {
-      setError('Pincode must be exactly 6 digits');
-      return false;
+    // Address validation - only validate if we're showing the individual address fields
+    if (!isAuthenticated || !savedAddress || isUsingCustomAddress) {
+      if (!formData.addressLine1.trim()) {
+        setError('Address Line 1 is required');
+        return false;
+      }
+      
+      // City validation
+      if (!formData.city.trim()) {
+        setError('City is required');
+        return false;
+      }
+      
+      // State validation
+      if (!formData.state.trim()) {
+        setError('State is required');
+        return false;
+      }
+      
+      // Pincode validation
+      if (!formData.pincode.trim()) {
+        setError('Pincode is required');
+        return false;
+      }
+      if (formData.pincode.length !== 6) {
+        setError('Pincode must be exactly 6 digits');
+        return false;
+      }
     }
     
     return true;
@@ -182,6 +203,64 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
 
   const getDeliveryTime = (state: string) => {
     return state === 'Tamil Nadu' ? '3 days' : '10 days';
+  };
+
+  const handleSaveAddress = async (address: Address) => {
+    try {
+      const result = await saveAddress(address);
+      if (result.success) {
+        // Auto-fill the form with the saved address
+        setFormData({
+          name: address.fullName,
+          email: formData.email, // Keep existing email
+          phone: address.phone,
+          addressLine1: address.addressLine1,
+          addressLine2: address.addressLine2 || '',
+          city: address.city,
+          state: address.state,
+          pincode: address.pincode
+        });
+        setIsAddressModalOpen(false);
+        setIsUsingCustomAddress(false);
+        console.log('Address saved successfully!');
+      } else {
+        console.error('Failed to save address:', result.error);
+        alert('Failed to save address. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error saving address:', error);
+      alert('An error occurred while saving address.');
+    }
+  };
+
+  const useSavedAddress = () => {
+    const userSavedAddress = getSavedAddress();
+    if (userSavedAddress) {
+      setFormData({
+        ...formData,
+        name: userSavedAddress.fullName,
+        phone: userSavedAddress.phone,
+        addressLine1: userSavedAddress.addressLine1,
+        addressLine2: userSavedAddress.addressLine2 || '',
+        city: userSavedAddress.city,
+        state: userSavedAddress.state,
+        pincode: userSavedAddress.pincode
+      });
+      setIsUsingCustomAddress(false);
+    }
+  };
+
+  const useCustomAddress = () => {
+    setIsUsingCustomAddress(true);
+    // Clear address fields for custom input
+    setFormData({
+      ...formData,
+      addressLine1: '',
+      addressLine2: '',
+      city: '',
+      state: profile?.state || '',
+      pincode: ''
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -210,19 +289,45 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
         orderFinalAmount = orderTotalAmount - orderDiscountAmount;
       }
 
+      // Determine which address data to use (saved address or form data)
+      let addressData;
+      if (isAuthenticated && savedAddress && !isUsingCustomAddress) {
+        // Use saved address data
+        addressData = {
+          name: savedAddress.fullName,
+          phone: savedAddress.phone,
+          addressLine1: savedAddress.addressLine1,
+          addressLine2: savedAddress.addressLine2 || '',
+          city: savedAddress.city,
+          state: savedAddress.state,
+          pincode: savedAddress.pincode
+        };
+      } else {
+        // Use form data (for guests or custom address)
+        addressData = {
+          name: formData.name,
+          phone: formData.phone,
+          addressLine1: formData.addressLine1,
+          addressLine2: formData.addressLine2,
+          city: formData.city,
+          state: formData.state,
+          pincode: formData.pincode
+        };
+      }
+
       // Combine address fields
-      const fullAddress = `${formData.addressLine1}${formData.addressLine2 ? ', ' + formData.addressLine2 : ''}, ${formData.city}, ${formData.state} - ${formData.pincode}`;
+      const fullAddress = `${addressData.addressLine1}${addressData.addressLine2 ? ', ' + addressData.addressLine2 : ''}, ${addressData.city}, ${addressData.state} - ${addressData.pincode}`;
 
       // Create order using order service
       const orderData = {
         user_id: isAuthenticated && profile ? profile.id : null,
-        guest_name: formData.name,
-        guest_email: formData.email,
-        guest_phone: formData.phone,
+        guest_name: addressData.name,
+        guest_email: formData.email, // Email always comes from form
+        guest_phone: addressData.phone,
         guest_address: fullAddress,
-        guest_state: formData.state,
-        guest_city: formData.city,
-        guest_pincode: formData.pincode,
+        guest_state: addressData.state,
+        guest_city: addressData.city,
+        guest_pincode: addressData.pincode,
         items: (isFromBuyNow || isFromSamples || isFromCart) && orderItems.length > 0 ? orderItems : [
           {
             product_name: finalProductName,
@@ -234,7 +339,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
         total_amount: orderTotalAmount,
         discount_amount: orderDiscountAmount,
         final_amount: orderFinalAmount,
-        delivery_time: getDeliveryTime(formData.state),
+        delivery_time: getDeliveryTime(addressData.state),
         is_guest: !isAuthenticated,
         status: 'pending'
       };
@@ -275,8 +380,17 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
             orderId: result.orderId,
             orderData: {
               ...orderData,
-              customerInfo: formData,
-              deliveryTime: getDeliveryTime(formData.state)
+              customerInfo: {
+                name: addressData.name,
+                email: formData.email,
+                phone: addressData.phone,
+                addressLine1: addressData.addressLine1,
+                addressLine2: addressData.addressLine2,
+                city: addressData.city,
+                state: addressData.state,
+                pincode: addressData.pincode
+              },
+              deliveryTime: getDeliveryTime(addressData.state)
             }
           } 
         });
@@ -442,108 +556,172 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
               </div>
             </div>
 
-            {/* Address Line 1 */}
-            <div>
-              <label htmlFor="addressLine1" className="block text-sm font-medium text-gray-700 mb-2">
-                Address Line 1 *
-              </label>
-              <div className="relative">
-                <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <input
-                  id="addressLine1"
-                  name="addressLine1"
-                  type="text"
-                  value={formData.addressLine1}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                  placeholder="House No., Street, Area"
-                />
+            {/* Address Options - Show only for authenticated users */}
+            {isAuthenticated && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h4 className="font-medium text-blue-900 mb-3 flex items-center gap-2">
+                  <MapPin className="h-5 w-5" />
+                  Delivery Address
+                </h4>
+                
+                {savedAddress && !isUsingCustomAddress ? (
+                  <div className="space-y-3">
+                    <div className="bg-white rounded-lg p-3 border border-blue-200">
+                      <div className="flex justify-between items-start">
+                        <div className="text-sm text-gray-700">
+                          <p className="font-medium">{savedAddress.fullName}</p>
+                          <p>{savedAddress.addressLine1}</p>
+                          {savedAddress.addressLine2 && <p>{savedAddress.addressLine2}</p>}
+                          <p>{savedAddress.city}, {savedAddress.state} - {savedAddress.pincode}</p>
+                          <p className="text-blue-600 font-medium">📞 {savedAddress.phone}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={useCustomAddress}
+                          className="text-blue-600 hover:text-blue-800 flex items-center gap-1 text-sm font-medium"
+                        >
+                          <Edit3 className="h-4 w-4" />
+                          Change
+                        </button>
+                      </div>
+                    </div>
+                    <p className="text-sm text-blue-700">Using your saved address</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex gap-2 flex-wrap">
+                      {savedAddress && (
+                        <button
+                          type="button"
+                          onClick={useSavedAddress}
+                          className="px-3 py-2 bg-blue-100 text-blue-800 rounded-lg hover:bg-blue-200 transition-colors text-sm font-medium"
+                        >
+                          Use Saved Address
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setIsAddressModalOpen(true)}
+                        className="px-3 py-2 bg-green-100 text-green-800 rounded-lg hover:bg-green-200 transition-colors text-sm font-medium"
+                      >
+                        {savedAddress ? 'Edit Saved Address' : 'Save New Address'}
+                      </button>
+                    </div>
+                    <p className="text-sm text-blue-700">
+                      {isUsingCustomAddress ? 'Enter custom address below' : 'Fill in address details below'}
+                    </p>
+                  </div>
+                )}
               </div>
-            </div>
+            )}
 
-            {/* Address Line 2 */}
-            <div>
-              <label htmlFor="addressLine2" className="block text-sm font-medium text-gray-700 mb-2">
-                Address Line 2 (Optional)
-              </label>
-              <div className="relative">
-                <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <input
-                  id="addressLine2"
-                  name="addressLine2"
-                  type="text"
-                  value={formData.addressLine2}
-                  onChange={handleInputChange}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                  placeholder="Landmark, Near..."
-                />
-              </div>
-            </div>
-
-            {/* City and State Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* City */}
-              <div>
-                <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-2">
-                  City *
-                </label>
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                  <input
-                    id="city"
-                    name="city"
-                    type="text"
-                    value={formData.city}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                    placeholder="Enter your city"
-                  />
+            {/* Individual Address Fields - Show only when not using saved address or for guests */}
+            {(!isAuthenticated || !savedAddress || isUsingCustomAddress) && (
+              <>
+                {/* Address Line 1 */}
+                <div>
+                  <label htmlFor="addressLine1" className="block text-sm font-medium text-gray-700 mb-2">
+                    Address Line 1 *
+                  </label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <input
+                      id="addressLine1"
+                      name="addressLine1"
+                      type="text"
+                      value={formData.addressLine1}
+                      onChange={handleInputChange}
+                      required
+                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                      placeholder="House No., Street, Area"
+                    />
+                  </div>
                 </div>
-              </div>
 
-              {/* State */}
-              <div>
-                <label htmlFor="state" className="block text-sm font-medium text-gray-700 mb-2">
-                  State *
-                </label>
-                <select
-                  id="state"
-                  name="state"
-                  value={formData.state}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                >
-                  <option value="">Select State</option>
-                  {indianStates.map((state) => (
-                    <option key={state} value={state}>{state}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
+                {/* Address Line 2 */}
+                <div>
+                  <label htmlFor="addressLine2" className="block text-sm font-medium text-gray-700 mb-2">
+                    Address Line 2 (Optional)
+                  </label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <input
+                      id="addressLine2"
+                      name="addressLine2"
+                      type="text"
+                      value={formData.addressLine2}
+                      onChange={handleInputChange}
+                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                      placeholder="Landmark, Near..."
+                    />
+                  </div>
+                </div>
 
-            {/* Pincode */}
-            <div>
-              <label htmlFor="pincode" className="block text-sm font-medium text-gray-700 mb-2">
-                Pincode * (6 digits)
-              </label>
-              <div className="relative">
-                <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <input
-                  id="pincode"
-                  name="pincode"
-                  type="text"
-                  value={formData.pincode}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                  placeholder="Enter 6-digit pincode"
-                  maxLength={6}
-                />
-              </div>
-            </div>
+                {/* City and State Row */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* City */}
+                  <div>
+                    <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-2">
+                      City *
+                    </label>
+                    <div className="relative">
+                      <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                      <input
+                        id="city"
+                        name="city"
+                        type="text"
+                        value={formData.city}
+                        onChange={handleInputChange}
+                        required
+                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                        placeholder="Enter your city"
+                      />
+                    </div>
+                  </div>
+
+                  {/* State */}
+                  <div>
+                    <label htmlFor="state" className="block text-sm font-medium text-gray-700 mb-2">
+                      State *
+                    </label>
+                    <select
+                      id="state"
+                      name="state"
+                      value={formData.state}
+                      onChange={handleInputChange}
+                      required
+                      className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                    >
+                      <option value="">Select State</option>
+                      {indianStates.map((state) => (
+                        <option key={state} value={state}>{state}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Pincode */}
+                <div>
+                  <label htmlFor="pincode" className="block text-sm font-medium text-gray-700 mb-2">
+                    Pincode * (6 digits)
+                  </label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <input
+                      id="pincode"
+                      name="pincode"
+                      type="text"
+                      value={formData.pincode}
+                      onChange={handleInputChange}
+                      required
+                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                      placeholder="Enter 6-digit pincode"
+                      maxLength={6}
+                    />
+                  </div>
+                </div>
+              </>
+            )}
 
             {/* Delivery Time Info */}
             {formData.state && (
@@ -588,6 +766,14 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
           </div>
         </motion.div>
       </div>
+      
+      {/* Address Modal */}
+      <AddressModal
+        isOpen={isAddressModalOpen}
+        onClose={() => setIsAddressModalOpen(false)}
+        onSave={handleSaveAddress}
+        initialAddress={savedAddress}
+      />
     </div>
   );
 };

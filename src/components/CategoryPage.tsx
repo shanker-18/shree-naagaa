@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ChevronRight, ShoppingCart, Plus, Check, ChevronLeft, Expand, X, Minus, Search, Filter } from 'lucide-react';
+import { ChevronRight, ShoppingCart, Plus, Check, X, Search, Filter } from 'lucide-react';
 import { motion } from 'framer-motion';
 import AuthModal from './AuthModal';
 import { useCart } from '../contexts/CartContext';
@@ -26,7 +26,7 @@ const legacyCategories = [
       "Jeera Powder: Can be used as an ingredient in any type of cooking.",
       "Vathal Powder: Made from a fine variety of chili. Used for making pickles and savory preparations.",
       "Malli (Coriander) Powder: Prepared from clean and plain coriander seeds. Can be mixed with any type of cooking.",
-      "Puliyokuzhambu Powder: Blended with vegetables to make 'puliyokuzhambu'.",
+      "Pulikuzhambu Powder: Blended with vegetables to make 'pulikuzhambu'.",
     ],
   },
   {
@@ -134,50 +134,107 @@ const CategoryPage: React.FC = () => {
   const { user } = useAuth();
   const { tempSamples, hasTempSamples } = useTempSamples();
   
-  // Check if user has discount eligibility from free samples
-  const hasDiscountEligibility = localStorage.getItem('hasDiscountEligibility') === 'true';
+  // Force correct pricing on production domain
+  const isProduction = useMemo(() => {
+    return window.location.hostname === 'www.shreeraagaswaadghar.com' || 
+           window.location.hostname === 'shreeraagaswaadghar.com' ||
+           window.location.hostname.includes('vercel.app');
+  }, []);
+  
+  // Check if user has discount eligibility from free samples (disabled on production)
+  const hasDiscountEligibility = useMemo(() => {
+    // On production, force disable discount eligibility
+    if (isProduction) {
+      return false;
+    }
+    // On localhost/dev, allow normal logic
+    return localStorage.getItem('hasDiscountEligibility') === 'true' && 
+           localStorage.getItem('freeSamplesClaimed') === 'true' &&
+           user;
+  }, [isProduction, user]);
+  
+  // Clear problematic flags on production
+  useEffect(() => {
+    if (isProduction) {
+      localStorage.removeItem('hasDiscountEligibility');
+      localStorage.removeItem('freeSamplesClaimed');
+      console.log('🧹 CategoryPage Production: Cleared discount flags');
+    }
+  }, [isProduction]);
+  
+  // Check if user has claimed first order discount (50% off)
+  const hasClaimedFirstOrderDiscount = localStorage.getItem('firstOrderDiscountClaimed') === 'true';
+  
+  // Check if user has completed their first order
+  const hasCompletedFirstOrder = user?.id ? localStorage.getItem(`firstOrderCompleted_${user.id}`) === 'true' : false;
   
   // Debug: Check temp samples on component mount
   console.log('📱 CategoryPage mounted with temp samples:', { tempSamples, hasSamples: hasTempSamples(), count: tempSamples?.length });
+  console.log('🎯 CategoryPage discount states:', { hasClaimedFirstOrderDiscount, hasCompletedFirstOrder });
   
   // Parse the category slug and find matching category
   const decodedSlug = slug ? parseCategorySlug(slug) : '';
   const category = categories.find((c) => toSlug(c.title) === decodedSlug);
 
-  // Comprehensive image mapping for all categories using available images
+  // Comprehensive image mapping - Updated to use ALL available images
   const productImageMap: { pattern: RegExp; src: string; category?: string }[] = [
-    // Mix & Pickle category - exact matches with available images
-    { pattern: /^puliodharai.*mix|^puliyotharai.*mix|tamarind.*mix/i, src: '/Items/Puliyotharai Mix.jpeg', category: 'Mix & Pickle' },
-    { pattern: /^vathakkuzhambu.*mix|vathal.*kuzhambu.*mix/i, src: '/Items/Vathakkuzhambu Mix.jpeg', category: 'Mix & Pickle' },
-    { pattern: /^puliyokuzhambu.*powder/i, src: '/Items/Puliyokuzhambu Powder.jpeg', category: 'Mix & Pickle' },
-    { pattern: /^poondu.*pickle|^garlic.*pickle/i, src: '/Items/Garlic Pickle.jpeg', category: 'Mix & Pickle' },
-    { pattern: /^pirandai.*pickle/i, src: '/Items/Pirandai pickle.jpeg', category: 'Mix & Pickle' },
-    { pattern: /^jathikkai.*pickle|^jadhikkai.*pickle/i, src: '/Items/Jadhikkai Pickle.jpeg', category: 'Mix & Pickle' },
-    { pattern: /^mudakatthan.*pickle|^mudakkathan.*pickle/i, src: '/Items/Mudakatthan Pickle.jpeg', category: 'Mix & Pickle' },
-    { pattern: /^kara.*narthangai.*pickle/i, src: '/Items/Kara narthangai pickle.jpeg', category: 'Mix & Pickle' },
-    
     // Powder category - exact matches with available images
     { pattern: /^turmeric.*powder|manjal.*powder/i, src: '/Items/Turmeric Powder.jpeg', category: 'Powder' },
     { pattern: /^sambar.*powder/i, src: '/Items/Sambar powder.jpeg', category: 'Powder' },
     { pattern: /^rasam.*powder/i, src: '/Items/Rasam Powder.jpeg', category: 'Powder' },
-    { pattern: /^poondu.*idly.*powder/i, src: '/Items/Poondu Idli Powder.jpeg', category: 'Powder' },
-    { pattern: /^ellu.*idli.*powder|^garlic.*idly.*powder/i, src: '/Items/Idli Powder.jpeg', category: 'Powder' },
-    { pattern: /^andra.*spl.*paruppu.*powder/i, src: '/Items/Sambar powder.jpeg', category: 'Powder' }, // Fallback
-    { pattern: /^moringa.*leaf.*powder/i, src: '/Items/Turmeric Powder.jpeg', category: 'Powder' }, // Fallback
-    { pattern: /^curry.*leaves.*powder/i, src: '/Items/Poondu idly powder.jpeg', category: 'Powder' }, // Fallback
-    { pattern: /^red.*chilli.*powder/i, src: '/Items/Sambar powder.jpeg', category: 'Powder' }, // Fallback
+    { pattern: /^idli.*powder|^idly.*powder/i, src: '/Items/Idli Powder.jpeg', category: 'Powder' },
+    { pattern: /^poondu.*idli.*powder|^poondu.*idly.*powder/i, src: '/Items/Poondu Idli Powder.jpeg', category: 'Powder' },
+    { pattern: /^andra.*spl.*paruppu.*powder|andhra.*spcl.*powder/i, src: '/Items/andhra spcl.jpg', category: 'Powder' },
+    { pattern: /^moringa.*leaf.*powder/i, src: '/Items/moringa leaf powder.jpg', category: 'Powder' },
+    { pattern: /^curry.*leaves.*powder|curry.*leaf.*powder/i, src: '/Items/curry leaf powder.jpg', category: 'Powder' },
+    { pattern: /^milagu.*powder|pepper.*powder/i, src: '/Items/Rasam Powder.jpeg', category: 'Powder' },
+    { pattern: /^jeera.*powder|cumin.*powder/i, src: '/Items/Turmeric Powder.jpeg', category: 'Powder' },
+    { pattern: /^vathal.*powder/i, src: '/Items/Sambar powder.jpeg', category: 'Powder' },
+    { pattern: /^malli.*powder|coriander.*powder/i, src: '/Items/Idli Powder.jpeg', category: 'Powder' },
     
-    // Appalam category - improved mapping with more pattern variations
-    { pattern: /^pai.*appalam/i, src: '/Items/Turmeric Powder.jpeg', category: 'Appalam' },
-    { pattern: /^kizangu.*appalam/i, src: '/Items/Sambar powder.jpeg', category: 'Appalam' },
-    { pattern: /^sovi.*appalam/i, src: '/Items/Poondu idly powder.jpeg', category: 'Appalam' },
-    { pattern: /^ulundhu.*appalam|blackgram.*appalam/i, src: '/Items/Idly Powder.jpeg', category: 'Appalam' },
-    { pattern: /^arisi.*appalam|rice.*appalam/i, src: '/Items/Rasam Powder.jpeg', category: 'Appalam' },
-    { pattern: /^garlic.*appalam/i, src: '/Items/Poondu pickle.jpeg', category: 'Appalam' },
-    { pattern: /^ilai.*vadaam/i, src: '/Items/Vathakkuzhambu Mix.jpeg', category: 'Appalam' },
+    // Mix & Pickle category - exact matches with available images
+    { pattern: /^puliodharai.*mix|^puliyotharai.*mix|tamarind.*mix/i, src: '/Items/Puliyotharai Mix.jpeg', category: 'Mix & Pickle' },
+    { pattern: /^vathakkuzhambu.*mix|vathal.*kuzhambu.*mix/i, src: '/Items/Vathakkuzhambu Mix.jpeg', category: 'Mix & Pickle' },
+    { pattern: /pulikuzhambu.*powder/i, src: '/Items/Puliyokuzhambu Powder.jpg', category: 'Powder' },
+    { pattern: /^pulikuzhambu.*powder/i, src: '/Items/Puliyokuzhambu Powder.jpg', category: 'Mix & Pickle' },
+    { pattern: /^poondu.*pickle|^garlic.*pickle/i, src: '/Items/Poondu pickle.jpeg', category: 'Mix & Pickle' },
+    { pattern: /^pirandai.*pickle/i, src: '/Items/Pirandai pickle.jpeg', category: 'Mix & Pickle' },
+    { pattern: /^jathikkai.*pickle|^jadhikkai.*pickle/i, src: '/Items/Jadhikkai Pickle.jpeg', category: 'Mix & Pickle' },
+    { pattern: /^mudakatthan.*pickle|^mudakkathan.*pickle/i, src: '/Items/Mudakatthan Pickle.jpeg', category: 'Mix & Pickle' },
+    { pattern: /^kara.*narthangai.*pickle/i, src: '/Items/Kara narthangai pickle.jpeg', category: 'Mix & Pickle' },
+    { pattern: /^salted.*lemon|lemon.*pickle/i, src: '/Items/Kara narthangai pickle.jpeg', category: 'Mix & Pickle' },
+    { pattern: /^avakkai.*pickle/i, src: '/Items/Mudakatthan Pickle.jpeg', category: 'Mix & Pickle' },
+    { pattern: /^kidarangakai.*pickle/i, src: '/Items/Pirandai pickle.jpeg', category: 'Mix & Pickle' },
+    { pattern: /^inji.*pickle|ginger.*pickle/i, src: '/Items/Garlic Pickle.jpeg', category: 'Mix & Pickle' },
+    { pattern: /^mavadu.*pickle/i, src: '/Items/Kara narthangai pickle.jpeg', category: 'Mix & Pickle' },
+    { pattern: /^kovaikkai.*pickle/i, src: '/Items/Pirandai pickle.jpeg', category: 'Mix & Pickle' },
+    { pattern: /^banana.*stem.*pickle/i, src: '/Items/Mudakatthan Pickle.jpeg', category: 'Mix & Pickle' },
+    { pattern: /^kongura.*pickle/i, src: '/Items/Garlic Pickle.jpeg', category: 'Mix & Pickle' },
+    { pattern: /^tamarind.*green.*chilly.*pickle/i, src: '/Items/Kara narthangai pickle.jpeg', category: 'Mix & Pickle' },
     
-    // Coffee category - using available image as fallback
-    { pattern: /^coffee.*powder/i, src: '/Items/Poondu idly powder.jpeg', category: 'Coffee' },
+    
+    // Vathal category - distributed among available images
+    { pattern: /^seeni.*avarai.*vathal/i, src: '/Items/Vathakkuzhambu Mix.jpeg', category: 'Vathal' },
+    { pattern: /^sundakkai.*vathal/i, src: '/Items/Mudakatthan Pickle.jpeg', category: 'Vathal' },
+    { pattern: /^manathakkali.*vathal/i, src: '/Items/Pirandai pickle.jpeg', category: 'Vathal' },
+    { pattern: /^mithukku.*vathal/i, src: '/Items/Garlic Pickle.jpeg', category: 'Vathal' },
+    { pattern: /^koozh.*vathal/i, src: '/Items/Puliyotharai Mix.jpeg', category: 'Vathal' },
+    { pattern: /^vendaikkai.*vathal|bhendi.*vathal/i, src: '/Items/Kara narthangai pickle.jpeg', category: 'Vathal' },
+    { pattern: /^pagalkkai.*vathal|bitter.*gourd.*vathal/i, src: '/Items/Jadhikkai Pickle.jpeg', category: 'Vathal' },
+    { pattern: /^morr.*milagai.*vathal|dried.*chilli.*vathal/i, src: '/Items/Poondu pickle.jpeg', category: 'Vathal' },
+    { pattern: /^dried.*brinjal.*vathal|kathirikai.*vathal/i, src: '/Items/Turmeric Powder.jpeg', category: 'Vathal' },
+    { pattern: /^onion.*vathal/i, src: '/Items/Idli Powder.jpeg', category: 'Vathal' },
+    { pattern: /^pirandai.*vathal/i, src: '/Items/Pirandai pickle.jpeg', category: 'Vathal' },
+    { pattern: /^onion.*vadagam/i, src: '/Items/Sambar powder.jpeg', category: 'Vathal' },
+    
+    // Oils category - distributed among available images
+    { pattern: /^cekku.*groundnut.*oil|chaki.*groundnut.*oil/i, src: '/Items/Puliyokuzhambu Powder.jpg', category: 'Oils' },
+    { pattern: /^cekku.*coconut.*oil|chaki.*coconut.*oil/i, src: '/Items/Rasam Powder.jpeg', category: 'Oils' },
+    { pattern: /^cekku.*gingelly.*oil|chaki.*gingelly.*oil/i, src: '/Items/Vathakkuzhambu Mix.jpeg', category: 'Oils' },
+    
+    // Coffee category
+    { pattern: /^coffee.*powder/i, src: '/Items/coffee powder.jpg', category: 'Coffee' },
+    { pattern: /^coffee.*large/i, src: '/Items/Coffee large.jpg', category: 'Coffee' }
   ];
 
   // Function to get image for any product across all categories
@@ -197,9 +254,16 @@ const CategoryPage: React.FC = () => {
     console.log('🚀 CategoryPage handleBuyNow called for:', productName);
     console.log('📊 TempSamples context state:', { tempSamples, hasTempSamples: hasTempSamples(), count: tempSamples?.length });
     
-    // Use discounted price if eligible, otherwise regular price
+    // Use first order discount (50% off) if claimed and not completed, otherwise regular price
     const originalPrice = 200;
-    const price = hasDiscountEligibility ? 180 : originalPrice;
+    let price = originalPrice;
+    
+    // Apply 50% discount if user is logged in AND claimed first order discount and hasn't completed first order
+    if (hasClaimedFirstOrderDiscount && !hasCompletedFirstOrder && user) {
+      price = originalPrice * 0.5; // 50% off = ₹100
+    } else if (hasDiscountEligibility) {
+      price = 180; // 10% off for free sample discount
+    }
     // Find the full item string for better description
     const fullItem = category?.items.find(item => getItemTitle(item) === productName) || productName;
     const product = { name: productName, category: category!.title, price, description: getProductDescription(fullItem) };
@@ -308,15 +372,31 @@ const CategoryPage: React.FC = () => {
   };
 
   const handleAddToCart = (productName: string) => {
-    // Use discounted price if eligible, otherwise regular price
+    // Use first order discount (50% off) if claimed and not completed, otherwise regular price
     const originalPrice = 200;
-    const price = hasDiscountEligibility ? 180 : originalPrice;
+    let price = originalPrice;
+    
+    // Apply 50% discount if user is logged in AND claimed first order discount and hasn't completed first order
+    if (hasClaimedFirstOrderDiscount && !hasCompletedFirstOrder && user) {
+      price = originalPrice * 0.5; // 50% off = ₹100
+    } else if (hasDiscountEligibility) {
+      price = 180; // 10% off for free sample discount
+    }
+    
     addToCart({ product_name: productName, category: category!.title, price, quantity: 1 });
   };
 
   const handleQuickView = (productName: string) => {
     const originalPrice = 200;
-    const price = hasDiscountEligibility ? 180 : originalPrice;
+    let price = originalPrice;
+    
+    // Apply 50% discount if user is logged in AND claimed first order discount and hasn't completed first order
+    if (hasClaimedFirstOrderDiscount && !hasCompletedFirstOrder && user) {
+      price = originalPrice * 0.5; // 50% off = ₹100
+    } else if (hasDiscountEligibility) {
+      price = 180; // 10% off for free sample discount
+    }
+    
     const fullItem = category?.items.find(item => getItemTitle(item) === productName) || productName;
     const imgSrc = getProductImage(productName, category!.title);
     
@@ -442,20 +522,20 @@ const CategoryPage: React.FC = () => {
           </Link>
         </div>
         
-        <div className={`rounded-2xl overflow-hidden mb-6 bg-gradient-to-r ${category.gradient} p-6 md:p-10 relative shadow-xl`}>
+        <div className={`rounded-2xl overflow-hidden mb-6 bg-gradient-to-r ${category.gradient} p-4 sm:p-6 md:p-10 relative shadow-xl`}>
           <div className="absolute inset-0 opacity-20">
             <div className="absolute top-4 right-4 w-24 h-24 border-2 border-white rounded-full"></div>
             <div className="absolute bottom-4 left-4 w-12 h-12 border border-white rounded-full"></div>
             <div className="absolute top-1/2 left-1/3 transform -translate-x-1/2 -translate-y-1/2 w-32 h-32 border border-white/50 rounded-full"></div>
           </div>
           <div className="relative z-10 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-            <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-3 tracking-tight drop-shadow-sm">{category.title}</h1>
-            <p className="text-white/95 text-lg max-w-3xl leading-relaxed">{category.description}</p>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold text-white mb-3 tracking-tight drop-shadow-sm">{category.title}</h1>
+            <p className="text-white/95 text-sm sm:text-base md:text-lg max-w-3xl leading-relaxed">{category.description}</p>
           </div>
         </div>
         
         {/* Search and Filter Bar */}
-        <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+        <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 mb-6">
           <div className="flex flex-col md:flex-row gap-4">
             {/* Search Bar */}
             <div className="flex-1 relative">
@@ -467,7 +547,7 @@ const CategoryPage: React.FC = () => {
                 placeholder={`Search ${category.title.toLowerCase()}...`}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors duration-200"
+                className="w-full pl-10 pr-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors duration-200"
               />
             </div>
             
@@ -475,7 +555,7 @@ const CategoryPage: React.FC = () => {
             <div className="relative" ref={filterRef}>
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className={`flex items-center gap-2 px-6 py-3 rounded-lg border transition-all duration-200 ${
+                className={`flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-3 rounded-lg border transition-all duration-200 ${
                   showFilters || weightFilter
                     ? 'bg-red-50 border-red-300 text-red-700'
                     : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
@@ -534,7 +614,7 @@ const CategoryPage: React.FC = () => {
         </div>
         
         {/* Modern E-commerce Product Grid */}
-        <div className="grid grid-cols-1 min-[640px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 md:gap-8">
           {filteredItems.length === 0 ? (
             <div className="col-span-full text-center py-12">
               <div className="text-gray-400 mb-4">
@@ -579,11 +659,21 @@ const CategoryPage: React.FC = () => {
                 className="bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100 overflow-hidden transform hover:-translate-y-1 relative group cursor-pointer"
                 onClick={() => handleQuickView(itemTitle)}
               >
-                {/* 5% OFF Badge */}
+                {/* Dynamic Discount Badge */}
                 <div className="absolute top-3 right-3 z-20">
-                  <span className="bg-red-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg">
-                    5% OFF
-                  </span>
+                  {hasClaimedFirstOrderDiscount && !hasCompletedFirstOrder && user ? (
+                    <span className="bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg animate-pulse">
+                      50% OFF!
+                    </span>
+                  ) : hasDiscountEligibility ? (
+                    <span className="bg-red-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg">
+                      10% OFF
+                    </span>
+                  ) : (
+                    <span className="bg-gray-400 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg">
+                      NEW
+                    </span>
+                  )}
                 </div>
                 
                 {/* Vegetarian Icon */}
@@ -594,7 +684,7 @@ const CategoryPage: React.FC = () => {
                 </div>
                 
                 {/* Product Image Container */}
-                <div className="relative h-64 overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
+                <div className="relative h-48 sm:h-56 md:h-64 overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
                   <div className="h-full flex items-center justify-center p-4">
                     {imgSrc ? (
                       <img 
@@ -608,7 +698,10 @@ const CategoryPage: React.FC = () => {
                         }}
                         onError={(e) => {
                           e.currentTarget.style.display = 'none';
-                          e.currentTarget.nextElementSibling.style.display = 'flex';
+                          const nextElement = e.currentTarget.nextElementSibling as HTMLElement;
+                          if (nextElement) {
+                            nextElement.style.display = 'flex';
+                          }
                         }}
                       />
                     ) : null}
@@ -626,23 +719,35 @@ const CategoryPage: React.FC = () => {
                 </div>
                 
                 {/* Product Details */}
-                <div className="p-5">
-                  <h3 className="text-gray-800 font-bold text-lg mb-2 leading-tight group-hover:text-blue-600 transition-colors duration-300" style={{
+                <div className="p-3 sm:p-4 md:p-5">
+                  <h3 className="text-gray-800 font-bold text-sm sm:text-base md:text-lg mb-2 leading-tight group-hover:text-blue-600 transition-colors duration-300" style={{
                     display: '-webkit-box',
                     WebkitLineClamp: 2,
                     WebkitBoxOrient: 'vertical',
                     overflow: 'hidden',
-                    minHeight: '3.5rem'
+                    minHeight: '2.5rem'
                   }}>
                     {itemTitle}
                   </h3>
                   
-                  <p className="text-gray-600 text-sm mb-4">Ready-to-cook authentic traditional mix</p>
+                  <p className="text-gray-600 text-xs sm:text-sm mb-3 sm:mb-4">Ready-to-cook authentic traditional mix</p>
                   
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <span className="text-2xl font-bold text-gray-900">₹200</span>
-                      <span className="text-lg text-gray-500 line-through">₹240</span>
+                      {hasClaimedFirstOrderDiscount && !hasCompletedFirstOrder && user ? (
+                        <>
+                          <span className="text-lg sm:text-xl md:text-2xl font-bold text-green-600">₹100</span>
+                          <span className="text-sm sm:text-base md:text-lg text-gray-500 line-through">₹200</span>
+                          <span className="text-xs text-red-500 font-bold">FIRST ORDER</span>
+                        </>
+                      ) : hasDiscountEligibility ? (
+                        <>
+                          <span className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">₹180</span>
+                          <span className="text-sm sm:text-base md:text-lg text-gray-500 line-through">₹200</span>
+                        </>
+                      ) : (
+                        <span className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">₹200</span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -662,11 +767,11 @@ const CategoryPage: React.FC = () => {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl"
+            className="bg-white rounded-2xl max-w-sm sm:max-w-lg md:max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl"
           >
             {/* Modal Header */}
-            <div className="flex items-center justify-between p-6 border-b">
-              <h2 className="text-xl font-bold text-gray-900">Product Details</h2>
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900">Product Details</h2>
               <button 
                 onClick={() => setShowProductModal(false)}
                 className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors duration-200"
@@ -676,10 +781,10 @@ const CategoryPage: React.FC = () => {
             </div>
             
             {/* Modal Content */}
-            <div className="p-6">
-              <div className="grid md:grid-cols-2 gap-6">
+            <div className="p-4 sm:p-6">
+              <div className="grid md:grid-cols-2 gap-4 sm:gap-6">
                 {/* Product Image */}
-                <div className="bg-gray-50 rounded-xl p-6 flex items-center justify-center h-80">
+                <div className="bg-gray-50 rounded-xl p-4 sm:p-6 flex items-center justify-center h-60 sm:h-80">
                   {modalProduct.image ? (
                     <img 
                       src={modalProduct.image} 
@@ -698,24 +803,38 @@ const CategoryPage: React.FC = () => {
                 
                 {/* Product Info */}
                 <div className="space-y-4">
-                  {/* Discount Badge */}
+                  {/* Dynamic Discount Badge */}
                   <div>
-                    <span className="bg-red-500 text-white text-sm font-bold px-3 py-1 rounded-md">5% off</span>
+                    {hasClaimedFirstOrderDiscount && !hasCompletedFirstOrder && user ? (
+                      <span className="bg-gradient-to-r from-red-500 to-pink-500 text-white text-sm font-bold px-3 py-1 rounded-md animate-pulse">50% OFF!</span>
+                    ) : hasDiscountEligibility ? (
+                      <span className="bg-red-500 text-white text-sm font-bold px-3 py-1 rounded-md">10% off</span>
+                    ) : (
+                      <span className="bg-gray-400 text-white text-sm font-bold px-3 py-1 rounded-md">NEW</span>
+                    )}
                   </div>
                   
                   {/* Product Name */}
-                  <h3 className="text-2xl font-bold text-gray-900">{modalProduct.name}</h3>
+                  <h3 className="text-xl sm:text-2xl font-bold text-gray-900">{modalProduct.name}</h3>
                   
                   {/* Category */}
                   <p className="text-gray-600">{modalProduct.category}</p>
                   
-                  {/* Price */}
+                  {/* Dynamic Price */}
                   <div className="flex items-center gap-3">
-                    <span className="text-3xl font-bold text-gray-900">
-                      ₹{hasDiscountEligibility ? '180' : '200'}
-                    </span>
-                    {hasDiscountEligibility && (
-                      <span className="text-lg text-gray-500 line-through">₹200</span>
+                    {hasClaimedFirstOrderDiscount && !hasCompletedFirstOrder && user ? (
+                      <>
+                        <span className="text-2xl sm:text-3xl font-bold text-green-600">₹100</span>
+                        <span className="text-base sm:text-lg text-gray-500 line-through">₹200</span>
+                        <div className="text-xs text-red-500 font-bold">FIRST ORDER SPECIAL</div>
+                      </>
+                    ) : hasDiscountEligibility ? (
+                      <>
+                        <span className="text-2xl sm:text-3xl font-bold text-gray-900">₹180</span>
+                        <span className="text-base sm:text-lg text-gray-500 line-through">₹200</span>
+                      </>
+                    ) : (
+                      <span className="text-2xl sm:text-3xl font-bold text-gray-900">₹200</span>
                     )}
                   </div>
                   

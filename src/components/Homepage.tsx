@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { categories } from '../data/categories';
 import { createCategoryUrl, toSlug } from '../utils/slugUtils';
+import { hasUserClaimedFirstOrderDiscount } from '../hooks/useFirstOrderPopup';
 
 // Custom CSS for premium styling
 const customStyles = `
@@ -137,6 +138,8 @@ const customStyles = `
     text-shadow: 0 2px 10px rgba(30, 64, 175, 0.1);
   }
   
+  /* Pure Tailwind CSS approach - no custom media queries needed */
+  
   /* @keyframes scroll - DISABLED */
   /* .animate-scroll - DISABLED */
   
@@ -153,10 +156,62 @@ const customStyles = `
 const Homepage: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showChatText, setShowChatText] = useState(true);
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
+  
+  // Check if user has claimed first order discount (50% off)
+  const hasClaimedFirstOrderDiscount = localStorage.getItem('firstOrderDiscountClaimed') === 'true';
+  
+  // Check if user has completed their first order
+  const hasCompletedFirstOrder = user?.id ? localStorage.getItem(`firstOrderCompleted_${user.id}`) === 'true' : false;
+  
+  // Debug logging for production troubleshooting
+  useEffect(() => {
+    console.log('🔍 Homepage Discount Debug:', {
+      isProduction,
+      hasUser: !!user,
+      hasClaimedFirstOrderDiscount,
+      hasCompletedFirstOrder,
+      hasDiscountEligibility,
+      hostname: window.location.hostname
+    });
+  }, []);
+  
+  // Force correct pricing on production domain
+  const isProduction = useMemo(() => {
+    return window.location.hostname === 'www.shreeraagaswaadghar.com' || 
+           window.location.hostname === 'shreeraagaswaadghar.com' ||
+           window.location.hostname.includes('vercel.app');
+  }, []);
+  
+  // Check if user has discount eligibility from free samples (disabled on production)
+  const hasDiscountEligibility = useMemo(() => {
+    // On production, force disable discount eligibility
+    if (isProduction) {
+      return false;
+    }
+    // On localhost/dev, allow normal logic
+    return localStorage.getItem('hasDiscountEligibility') === 'true' && 
+           localStorage.getItem('freeSamplesClaimed') === 'true' &&
+           user;
+  }, [isProduction, user]);
+  
+  // Clear problematic flags on production
+  useEffect(() => {
+    if (isProduction) {
+      localStorage.removeItem('hasDiscountEligibility');
+      localStorage.removeItem('freeSamplesClaimed');
+      console.log('🧹 Production: Cleared discount flags');
+    }
+  }, [isProduction]);
 
   // Create refs for scroll containers
   const scrollRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+  
+  // Auto-scroll state for products section
+  const [isAutoScrolling, setIsAutoScrolling] = useState(false);
+  const [lastUserInteraction, setLastUserInteraction] = useState(Date.now());
+  const autoScrollTimer = useRef<NodeJS.Timeout | null>(null);
+  const autoScrollInterval = useRef<NodeJS.Timeout | null>(null);
   
   // Scroll function for category items
   const scrollCategory = (categoryIndex: number, direction: 'left' | 'right') => {
@@ -191,45 +246,147 @@ const Homepage: React.FC = () => {
     }
   };
   
+  // Auto-scroll functions for products section
+  const startAutoScroll = () => {
+    const container = scrollRefs.current['all-products'];
+    if (!container || isAutoScrolling) return;
+    
+    setIsAutoScrolling(true);
+    
+    autoScrollInterval.current = setInterval(() => {
+      if (container) {
+        const maxScroll = container.scrollWidth - container.clientWidth;
+        const currentScroll = container.scrollLeft;
+        
+        if (currentScroll >= maxScroll) {
+          // Reset to beginning when reached end
+          container.scrollTo({ left: 0, behavior: 'smooth' });
+        } else {
+          // Scroll right by one card width
+          container.scrollBy({ left: 320, behavior: 'smooth' });
+        }
+      }
+    }, 2000); // Scroll every 2 seconds
+  };
+  
+  const stopAutoScroll = () => {
+    setIsAutoScrolling(false);
+    if (autoScrollInterval.current) {
+      clearInterval(autoScrollInterval.current);
+      autoScrollInterval.current = null;
+    }
+  };
+  
+  const resetAutoScrollTimer = () => {
+    setLastUserInteraction(Date.now());
+    stopAutoScroll();
+    
+    // Clear existing timer
+    if (autoScrollTimer.current) {
+      clearTimeout(autoScrollTimer.current);
+    }
+    
+    // Start new timer for 3 seconds
+    autoScrollTimer.current = setTimeout(() => {
+      startAutoScroll();
+    }, 3000);
+  };
+  
+  const handleUserScroll = () => {
+    resetAutoScrollTimer();
+  };
+  
+  const handleMouseEnter = () => {
+    stopAutoScroll();
+    if (autoScrollTimer.current) {
+      clearTimeout(autoScrollTimer.current);
+    }
+  };
+  
+  const handleMouseLeave = () => {
+    resetAutoScrollTimer();
+  };
+  
+  // Auto-scroll initialization and cleanup
+  useEffect(() => {
+    // Start auto-scroll after initial delay
+    const initialTimer = setTimeout(() => {
+      startAutoScroll();
+    }, 3000);
+    
+    // Cleanup on unmount
+    return () => {
+      clearTimeout(initialTimer);
+      stopAutoScroll();
+      if (autoScrollTimer.current) {
+        clearTimeout(autoScrollTimer.current);
+      }
+    };
+  }, []); // Empty dependency array for mount/unmount only
+  
   // Extract item title (before colon)
   const getItemTitle = (item: string): string => {
     return item.includes(':') ? item.split(':')[0].trim() : item;
   };
 
-  // Comprehensive image mapping for all categories - Updated to match available images
+  // Comprehensive image mapping - Updated to use ALL available images
   const productImageMap: { pattern: RegExp; src: string; category?: string }[] = [
     // Powder category - exact matches with available images
     { pattern: /^turmeric.*powder|manjal.*powder/i, src: '/Items/Turmeric Powder.jpeg', category: 'Powder' },
-    { pattern: /^sambar.*powder/i, src: '/Items/Sambar powder.jpeg', category: 'Powder' },
     { pattern: /^rasam.*powder/i, src: '/Items/Rasam Powder.jpeg', category: 'Powder' },
-     { pattern: /^idli.*powder/i, src: '/Items/Idli Powder.jpeg', category: 'Powder' },
+    { pattern: /^idli.*powder|^idly.*powder/i, src: '/Items/Idli Powder.jpeg', category: 'Powder' },
     { pattern: /^poondu.*idli.*powder|^poondu.*idly.*powder/i, src: '/Items/Poondu Idli Powder.jpeg', category: 'Powder' },
-    { pattern: /^ellu.*idli.*powder/i, src: '/Items/Idli Powder.jpeg', category: 'Powder' },
-    { pattern: /^andra.*spl.*paruppu.*powder/i, src: '/Items/Sambar powder.jpeg', category: 'Powder' }, // Using similar image
-    { pattern: /^moringa.*leaf.*powder/i, src: '/Items/Turmeric Powder.jpeg', category: 'Powder' }, // Using similar image
-    { pattern: /^curry.*leaves.*powder/i, src: '/Items/Idli Powder.jpeg', category: 'Powder' }, // Using similar image
-    { pattern: /^red.*chilli.*powder/i, src: '/Items/Sambar powder.jpeg', category: 'Powder' }, // Using similar image
+    { pattern: /^andra.*spl.*paruppu.*powder|andhra.*spcl.*powder/i, src: '/Items/andhra spcl.jpg', category: 'Powder' },
+    { pattern: /^moringa.*leaf.*powder/i, src: '/Items/moringa leaf powder.jpg', category: 'Powder' },
+    { pattern: /^curry.*leaves.*powder|curry.*leaf.*powder/i, src: '/Items/curry leaf powder.jpg', category: 'Powder' },
+    { pattern: /^milagu.*powder|pepper.*powder/i, src: '/Items/Rasam Powder.jpeg', category: 'Powder' },
+    { pattern: /^jeera.*powder|cumin.*powder/i, src: '/Items/Turmeric Powder.jpeg', category: 'Powder' },
+    { pattern: /^vathal.*powder/i, src: '/Items/Sambar powder.jpeg', category: 'Powder' },
+    { pattern: /^malli.*powder|coriander.*powder/i, src: '/Items/Idli Powder.jpeg', category: 'Powder' },
     
     // Mix & Pickle category - exact matches with available images
     { pattern: /^puliodharai.*mix|^puliyotharai.*mix|tamarind.*mix/i, src: '/Items/Puliyotharai Mix.jpeg', category: 'Mix & Pickle' },
-     { pattern: /^puliyotharai.*tamarind.*mix/i, src: '/Items/Puliyotharai Mix.jpeg', category: 'Mix & Pickle' },
     { pattern: /^vathakkuzhambu.*mix|vathal.*kuzhambu.*mix/i, src: '/Items/Vathakkuzhambu Mix.jpeg', category: 'Mix & Pickle' },
-    { pattern: /^puliyokuzhambu.*powder/i, src: '/Items/Puliyokuzhambu Powder.jpeg', category: 'Mix & Pickle' },
-    { pattern: /^poondu.*pickle/i, src: '/Items/Poondu pickle.jpeg', category: 'Mix & Pickle' },
-    { pattern: /^garlic.*pickle/i, src: '/Items/Garlic Pickle.jpeg', category: 'Mix & Pickle' },
+    { pattern: /pulikuzhambu.*powder/i, src: '/Items/Puliyokuzhambu Powder.jpg', category: 'Powder' },
+    { pattern: /^pulikuzhambu.*powder/i, src: '/Items/Puliyokuzhambu Powder.jpg', category: 'Mix & Pickle' },
+    { pattern: /^poondu.*pickle|^garlic.*pickle/i, src: '/Items/Poondu pickle.jpeg', category: 'Mix & Pickle' },
     { pattern: /^pirandai.*pickle/i, src: '/Items/Pirandai pickle.jpeg', category: 'Mix & Pickle' },
-    { pattern: /^jathikkai.*pickle/i, src: '/Items/Jathikkai pickle.jpeg', category: 'Mix & Pickle' },
-    { pattern: /^jadhikkai.*pickle/i, src: '/Items/Jadhikkai Pickle.jpeg', category: 'Mix & Pickle' },
+    { pattern: /^jathikkai.*pickle|^jadhikkai.*pickle/i, src: '/Items/Jadhikkai Pickle.jpeg', category: 'Mix & Pickle' },
     { pattern: /^mudakatthan.*pickle|^mudakkathan.*pickle/i, src: '/Items/Mudakatthan Pickle.jpeg', category: 'Mix & Pickle' },
     { pattern: /^kara.*narthangai.*pickle/i, src: '/Items/Kara narthangai pickle.jpeg', category: 'Mix & Pickle' },
+    { pattern: /^salted.*lemon|lemon.*pickle/i, src: '/Items/Kara narthangai pickle.jpeg', category: 'Mix & Pickle' },
+    { pattern: /^avakkai.*pickle/i, src: '/Items/Mudakatthan Pickle.jpeg', category: 'Mix & Pickle' },
+    { pattern: /^kidarangakai.*pickle/i, src: '/Items/Pirandai pickle.jpeg', category: 'Mix & Pickle' },
+    { pattern: /^inji.*pickle|ginger.*pickle/i, src: '/Items/Garlic Pickle.jpeg', category: 'Mix & Pickle' },
+    { pattern: /^mavadu.*pickle/i, src: '/Items/Kara narthangai pickle.jpeg', category: 'Mix & Pickle' },
+    { pattern: /^kovaikkai.*pickle/i, src: '/Items/Pirandai pickle.jpeg', category: 'Mix & Pickle' },
+    { pattern: /^banana.*stem.*pickle/i, src: '/Items/Mudakatthan Pickle.jpeg', category: 'Mix & Pickle' },
+    { pattern: /^kongura.*pickle/i, src: '/Items/Garlic Pickle.jpeg', category: 'Mix & Pickle' },
+    { pattern: /^tamarind.*green.*chilly.*pickle/i, src: '/Items/Kara narthangai pickle.jpeg', category: 'Mix & Pickle' },
     
-    // Appalam category - using available images as fallbacks
-    { pattern: /^ulundhu.*appalam/i, src: '/Items/Idli Powder.jpeg', category: 'Appalam' }, // Using similar image
-    { pattern: /^rice.*appalam/i, src: '/Items/Turmeric Powder.jpeg', category: 'Appalam' }, // Using similar image
-    { pattern: /^kizhangu.*appalam/i, src: '/Items/Sambar powder.jpeg', category: 'Appalam' }, // Using similar image
     
-    // Coffee category - using available image as fallback
-    { pattern: /^coffee.*powder/i, src: '/Items/Idli Powder.jpeg', category: 'Coffee' }, // Using similar image
+    // Vathal category - distributed among available images
+    { pattern: /^seeni.*avarai.*vathal/i, src: '/Items/Vathakkuzhambu Mix.jpeg', category: 'Vathal' },
+    { pattern: /^sundakkai.*vathal/i, src: '/Items/Mudakatthan Pickle.jpeg', category: 'Vathal' },
+    { pattern: /^manathakkali.*vathal/i, src: '/Items/Pirandai pickle.jpeg', category: 'Vathal' },
+    { pattern: /^mithukku.*vathal/i, src: '/Items/Garlic Pickle.jpeg', category: 'Vathal' },
+    { pattern: /^koozh.*vathal/i, src: '/Items/Puliyotharai Mix.jpeg', category: 'Vathal' },
+    { pattern: /^vendaikkai.*vathal|bhendi.*vathal/i, src: '/Items/Kara narthangai pickle.jpeg', category: 'Vathal' },
+    { pattern: /^pagalkkai.*vathal|bitter.*gourd.*vathal/i, src: '/Items/Jadhikkai Pickle.jpeg', category: 'Vathal' },
+    { pattern: /^morr.*milagai.*vathal|dried.*chilli.*vathal/i, src: '/Items/Poondu pickle.jpeg', category: 'Vathal' },
+    { pattern: /^dried.*brinjal.*vathal|kathirikai.*vathal/i, src: '/Items/Turmeric Powder.jpeg', category: 'Vathal' },
+    { pattern: /^onion.*vathal/i, src: '/Items/Idli Powder.jpeg', category: 'Vathal' },
+    { pattern: /^pirandai.*vathal/i, src: '/Items/Pirandai pickle.jpeg', category: 'Vathal' },
+    { pattern: /^onion.*vadagam/i, src: '/Items/Sambar powder.jpeg', category: 'Vathal' },
+    
+    // Oils category - distributed among available images
+    { pattern: /^cekku.*groundnut.*oil|chaki.*groundnut.*oil/i, src: '/Items/Puliyokuzhambu Powder.jpg', category: 'Oils' },
+    { pattern: /^cekku.*coconut.*oil|chaki.*coconut.*oil/i, src: '/Items/Rasam Powder.jpeg', category: 'Oils' },
+    { pattern: /^cekku.*gingelly.*oil|chaki.*gingelly.*oil/i, src: '/Items/Vathakkuzhambu Mix.jpeg', category: 'Oils' },
+    
+    // Coffee category
+    { pattern: /^coffee.*powder/i, src: '/Items/coffee powder.jpg', category: 'Coffee' },
+    { pattern: /^coffee.*large/i, src: '/Items/Coffee large.jpg', category: 'Coffee' }
   ];
 
   // Function to get image for any product across all categories
@@ -272,31 +429,134 @@ const Homepage: React.FC = () => {
 
 
 
-      {/* Hero Section - Empty Image Placeholder */}
+      {/* Hero Section - Responsive Image Display (Desktop vs Mobile) */}
       <section
         id="home"
-        className="relative h-96 bg-gradient-to-r from-gray-100 via-gray-50 to-gray-100 border-b border-gray-200"
+        className="relative w-full 
+                   h-[60vh] min-h-[400px] max-h-[600px] 
+                   sm:h-[65vh] sm:min-h-[450px] sm:max-h-[650px] 
+                   md:h-[70vh] md:min-h-[500px] md:max-h-[700px] 
+                   lg:h-[75vh] lg:min-h-[550px] lg:max-h-[750px] 
+                   xl:h-[80vh] xl:min-h-[600px] xl:max-h-[800px] 
+                   bg-gradient-to-r from-gray-100 via-gray-50 to-gray-100 
+                   border-b border-gray-200 overflow-hidden
+                   flex items-center justify-center"
       >
-        <div className="h-full flex items-center justify-center">
-          <div className="text-center text-gray-400">
-            <div className="w-16 h-16 mx-auto mb-4 bg-gray-200 rounded-full flex items-center justify-center">
-              <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        {/* Desktop Background Image - Hidden on Mobile */}
+        <div 
+          className="hidden md:block absolute inset-0 w-full h-full bg-contain bg-center bg-no-repeat"
+          style={{
+            backgroundImage: `url('/Items/all images.png')`,
+            backgroundSize: 'contain',
+            backgroundPosition: 'center center',
+            backgroundRepeat: 'no-repeat'
+          }}
+        />
+        
+        {/* Mobile Background Image - Hidden on Desktop */}
+        <div 
+          className="block md:hidden absolute inset-0 w-full h-full bg-contain bg-center bg-no-repeat"
+          style={{
+            backgroundImage: `url('/Items/Mobile.png')`,
+            backgroundSize: 'contain',
+            backgroundPosition: 'center center',
+            backgroundRepeat: 'no-repeat'
+          }}
+        />
+        
+        {/* Desktop IMG tag - Hidden on Mobile */}
+        <img 
+          src="/Items/all images.png" 
+          alt="Shree Raaga SWAAD GHAR - Complete Product Collection" 
+          className="hidden md:block max-w-full max-h-full w-auto h-auto object-contain"
+          style={{
+            maxWidth: '100%',
+            maxHeight: '100%',
+            width: 'auto',
+            height: 'auto',
+            objectFit: 'contain'
+          }}
+          loading="eager"
+          onError={(e) => {
+            e.currentTarget.style.display = 'none';
+          }}
+        />
+        
+        {/* Mobile IMG tag - Hidden on Desktop */}
+        <img 
+          src="/Items/Mobile.png" 
+          alt="Shree Raaga SWAAD GHAR - Mobile Optimized View" 
+          className="block md:hidden max-w-full max-h-full w-auto h-auto object-contain"
+          style={{
+            maxWidth: '100%',
+            maxHeight: '100%',
+            width: 'auto',
+            height: 'auto',
+            objectFit: 'contain'
+          }}
+          loading="eager"
+          onError={(e) => {
+            e.currentTarget.style.display = 'none';
+            e.currentTarget.nextElementSibling?.classList.remove('hidden');
+          }}
+        />
+        
+        {/* Enhanced Fallback placeholder */}
+        <div className="hidden absolute inset-0 w-full h-full flex items-center justify-center bg-gradient-to-br from-orange-50 via-amber-50 to-red-50">
+          <div className="text-center p-6 max-w-sm mx-auto">
+            <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-orange-100 to-red-100 rounded-full flex items-center justify-center shadow-xl border border-orange-200">
+              <svg className="w-12 h-12 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
             </div>
-            <p className="text-lg font-medium">Image carousel will be placed here</p>
+            <h2 className="text-xl md:text-2xl font-bold text-orange-800 mb-3">Shree Raaga SWAAD GHAR</h2>
+            <p className="text-base font-medium text-orange-600 mb-2">Authentic Traditional Products</p>
+            <p className="text-sm text-orange-500">Loading banner image...</p>
+          </div>
+        </div>
+      </section>
+
+      {/* Welcome Section - Below Cover Image */}
+      <section className="py-8 sm:py-12 bg-gradient-to-r from-slate-50 via-white to-blue-50 relative overflow-hidden">
+        <div className="absolute inset-0 opacity-5">
+          <div className="absolute top-8 left-8 w-32 h-32 border-2 border-red-300 rounded-full"></div>
+          <div className="absolute bottom-8 right-8 w-24 h-24 border border-amber-300 rounded-full"></div>
+          <div className="absolute top-1/2 left-1/4 transform -translate-x-1/2 -translate-y-1/2 w-40 h-40 border border-blue-300/50 rounded-full"></div>
+        </div>
+        <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <div className="space-y-4 sm:space-y-6">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight">
+              <span className="block bg-gradient-to-r from-red-600 via-amber-600 to-red-600 bg-clip-text text-transparent drop-shadow-sm">
+                Welcome to
+              </span>
+              <span className="block text-slate-800 mt-2 sm:mt-3 text-2xl sm:text-3xl md:text-5xl lg:text-6xl">
+                Shree Raaga SWAAD GHAR
+              </span>
+            </h1>
+            
+            <div className="flex items-center justify-center">
+              <div className="h-px bg-gradient-to-r from-transparent via-red-400 to-transparent flex-1 max-w-16 sm:max-w-32"></div>
+              <div className="mx-3 sm:mx-4 p-1.5 sm:p-2 bg-gradient-to-r from-amber-100 to-red-100 rounded-full">
+                <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-red-600" />
+              </div>
+              <div className="h-px bg-gradient-to-r from-transparent via-red-400 to-transparent flex-1 max-w-16 sm:max-w-32"></div>
+            </div>
+            
+            <p className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-semibold text-slate-700 italic">
+              Authentic Traditional Flavors
+            </p>
           </div>
         </div>
       </section>
 
       {/* Our Products Section - Horizontal Scroll */}
-      <section id="categories" className="py-20 bg-gradient-to-b from-slate-100 via-blue-50 to-slate-100 relative overflow-hidden">
+      <section id="categories" className="py-12 sm:py-16 md:py-20 bg-gradient-to-b from-blue-50 via-slate-50 to-blue-50 relative overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold corporate-blue mb-4 tracking-tight">
+          <div className="text-center mb-10 sm:mb-12 md:mb-16">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold corporate-blue mb-4 sm:mb-6 tracking-tight">
               Our Products
             </h2>
-            <p className="text-lg text-red-600 max-w-2xl mx-auto font-medium italic">
+            <p className="text-lg sm:text-xl md:text-2xl text-red-600 max-w-3xl mx-auto font-medium italic px-4">
               Discover our complete collection of authentic Indian spices and products
             </p>
           </div>
@@ -305,8 +565,13 @@ const Homepage: React.FC = () => {
           <div className="relative">
             <div 
               ref={el => scrollRefs.current['all-products'] = el}
-              className="flex overflow-x-auto gap-6 pb-6 scrollbar-hide px-4" 
+              className="flex overflow-x-auto gap-3 sm:gap-4 md:gap-6 pb-4 sm:pb-6 scrollbar-hide px-2 sm:px-4" 
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              onScroll={handleUserScroll}
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
+              onTouchStart={handleMouseEnter}
+              onTouchEnd={handleMouseLeave}
             >
               {(() => {
                 // Flatten all products from all categories
@@ -329,14 +594,24 @@ const Homepage: React.FC = () => {
                     <Link 
                       key={index}
                       to={`/category/${toSlug(product.category)}`}
-                      className="flex-none w-80 group cursor-pointer"
+                      className="flex-none w-64 sm:w-72 md:w-80 lg:w-96 group cursor-pointer"
                     >
                       <div className="bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100 overflow-hidden group-hover:-translate-y-1 relative">
-                        {/* 5% OFF Badge */}
+                        {/* Dynamic Discount Badge */}
                         <div className="absolute top-3 right-3 z-20">
-                          <span className="bg-red-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg">
-                            5% OFF
-                          </span>
+                          {hasClaimedFirstOrderDiscount && !hasCompletedFirstOrder && user ? (
+                            <span className="bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg animate-pulse">
+                              50% OFF!
+                            </span>
+                          ) : hasDiscountEligibility ? (
+                            <span className="bg-red-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg">
+                              10% OFF
+                            </span>
+                          ) : (
+                            <span className="bg-gray-400 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg">
+                              NEW
+                            </span>
+                          )}
                         </div>
                         
                         {/* Vegetarian Icon */}
@@ -347,8 +622,8 @@ const Homepage: React.FC = () => {
                         </div>
                         
                         {/* Product Image Container */}
-                        <div className="relative h-64 overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
-                          <div className="h-full flex items-center justify-center p-4">
+                        <div className="relative h-48 sm:h-56 md:h-64 lg:h-72 overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
+                          <div className="h-full flex items-center justify-center p-3 sm:p-4">
                             {imgSrc ? (
                               <img 
                                 src={imgSrc} 
@@ -379,23 +654,35 @@ const Homepage: React.FC = () => {
                         </div>
                         
                         {/* Product Details */}
-                        <div className="p-5">
-                          <h3 className="text-gray-800 font-bold text-lg mb-2 leading-tight group-hover:text-blue-600 transition-colors duration-300" style={{
+                      <div className="p-4 sm:p-5 md:p-6">
+                          <h3 className="text-gray-800 font-bold text-base sm:text-lg md:text-xl mb-3 leading-tight group-hover:text-blue-600 transition-colors duration-300" style={{
                             display: '-webkit-box',
                             WebkitLineClamp: 2,
                             WebkitBoxOrient: 'vertical',
                             overflow: 'hidden',
-                            minHeight: '3.5rem'
+                            minHeight: '3rem'
                           }}>
                             {itemTitle}
                           </h3>
                           
-                          <p className="text-gray-600 text-sm mb-4">Ready-to-cook authentic traditional mix</p>
+                          <p className="text-gray-600 text-sm sm:text-base mb-4 sm:mb-5">Ready-to-cook authentic traditional mix</p>
                           
                           <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <span className="text-2xl font-bold text-gray-900">₹200</span>
-                              <span className="text-lg text-gray-500 line-through">₹240</span>
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
+                              {hasClaimedFirstOrderDiscount && !hasCompletedFirstOrder && user ? (
+                                <>
+                                  <span className="text-xl sm:text-2xl md:text-3xl font-bold text-green-600">₹100</span>
+                                  <span className="text-sm sm:text-base md:text-lg text-gray-500 line-through">₹200</span>
+                                  <span className="text-xs sm:text-sm text-red-500 font-bold">FIRST ORDER</span>
+                                </>
+                              ) : hasDiscountEligibility ? (
+                                <>
+                                  <span className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">₹180</span>
+                                  <span className="text-sm sm:text-base md:text-lg text-gray-500 line-through">₹200</span>
+                                </>
+                              ) : (
+                                <span className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">₹200</span>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -412,26 +699,26 @@ const Homepage: React.FC = () => {
               onClick={() => {
                 const container = scrollRefs.current['all-products'];
                 if (container) {
-                  container.scrollBy({ left: -350, behavior: 'smooth' });
+                  container.scrollBy({ left: -320, behavior: 'smooth' });
                 }
               }}
-              className="absolute left-2 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/95 backdrop-blur-sm rounded-full shadow-xl flex items-center justify-center hover:bg-white transition-all duration-300 hover:scale-110 border border-gray-200 z-10"
+              className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 bg-white/95 backdrop-blur-sm rounded-full shadow-xl flex items-center justify-center hover:bg-white transition-all duration-300 hover:scale-110 border border-gray-200 z-10"
               aria-label="Scroll left"
             >
-              <ChevronLeft className="h-6 w-6 text-gray-600" />
+              <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6 md:h-7 md:w-7 text-gray-600" />
             </button>
             
             <button 
               onClick={() => {
                 const container = scrollRefs.current['all-products'];
                 if (container) {
-                  container.scrollBy({ left: 350, behavior: 'smooth' });
+                  container.scrollBy({ left: 320, behavior: 'smooth' });
                 }
               }}
-              className="absolute right-2 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/95 backdrop-blur-sm rounded-full shadow-xl flex items-center justify-center hover:bg-white transition-all duration-300 hover:scale-110 border border-gray-200 z-10"
+              className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 bg-white/95 backdrop-blur-sm rounded-full shadow-xl flex items-center justify-center hover:bg-white transition-all duration-300 hover:scale-110 border border-gray-200 z-10"
               aria-label="Scroll right"
             >
-              <ChevronRight className="h-6 w-6 text-gray-600" />
+              <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6 md:h-7 md:w-7 text-gray-600" />
             </button>
           </div>
         </div>
@@ -461,7 +748,7 @@ const Homepage: React.FC = () => {
                 </div>
               </div>
               <div className="lg:col-span-2 space-y-6">
-                <h2 className="text-4xl md:text-5xl font-bold corporate-blue tracking-tight">Our Heritage Story</h2>
+                <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold corporate-blue tracking-tight">Our Heritage Story</h2>
                 <p className="text-lg text-slate-700 leading-relaxed font-medium">
                   Prepared the age-old way with handpicked ingredients and no artificial additives, our foods carry the true flavor of our heritage, straight from our kitchen to yours.
                 </p>
@@ -492,17 +779,17 @@ const Homepage: React.FC = () => {
       <section id="contact" className="py-20 bg-gradient-to-r from-indigo-900 via-blue-900 to-indigo-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4 tracking-tight">
               Get In Touch
             </h2>
-            <p className="text-xl text-white/90 max-w-2xl mx-auto font-medium italic">
+            <p className="text-base sm:text-lg md:text-xl text-white/90 max-w-2xl mx-auto font-medium italic">
               Ready to experience authentic flavors? Contact us today!
             </p>
           </div>
 
           <div className="flex justify-center">
             <div className="max-w-2xl w-full">
-              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20">
+              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 sm:p-6 md:p-8 border border-white/20">
                 <h3 className="text-2xl font-bold text-white mb-6 text-center">Contact Information</h3>
                 <div className="space-y-6">
                   <div className="flex items-start space-x-4">
@@ -557,7 +844,7 @@ const Homepage: React.FC = () => {
       </section>
 
       {/* WhatsApp Chat Button */}
-      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-center gap-2">
+      <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 flex flex-col items-center gap-2">
         {/* Chat with us text - conditionally rendered */}
         {showChatText && (
           <div className="bg-white px-3 py-2 rounded-lg shadow-lg border border-gray-200 flex items-center gap-2">
@@ -577,9 +864,9 @@ const Homepage: React.FC = () => {
           href="https://wa.me/917305391377" 
           target="_blank" 
           rel="noopener noreferrer"
-          className="flex items-center justify-center w-14 h-14 bg-green-500 hover:bg-green-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200"
+          className="flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 bg-green-500 hover:bg-green-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200"
         >
-          <svg className="w-7 h-7" fill="currentColor" viewBox="0 0 24 24">
+          <svg className="w-6 h-6 sm:w-7 sm:h-7" fill="currentColor" viewBox="0 0 24 24">
             <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.787"/>
           </svg>
         </a>

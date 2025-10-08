@@ -20,29 +20,21 @@ export const useFreeSamplePopup = (): UseFreeSamplePopupReturn => {
   const [hasBeenClaimed, setHasBeenClaimed] = useState(false);
 
   useEffect(() => {
-    // Check if popup has been shown before
-    const popupShown = localStorage.getItem(POPUP_SHOWN_KEY) === 'true';
-    const popupDismissed = localStorage.getItem(POPUP_DISMISSED_KEY) === 'true';
+    // Check if popup has been claimed before
     const popupClaimed = localStorage.getItem(POPUP_CLAIMED_KEY) === 'true';
-    
-    setHasBeenShown(popupShown);
     setHasBeenClaimed(popupClaimed);
+    
+    // Record that popup has been shown in this session
+    setHasBeenShown(true);
 
-    // Show popup on every page load/refresh unless permanently dismissed
-    // Only show if:
-    // 1. Not permanently dismissed (user clicked "Maybe Later" allows it to show again)
-    // 2. Not currently on login/register/free-samples pages
+    // Show popup on every page load/refresh
+    // Only check if on login/register/free-samples pages
     const currentPath = window.location.pathname;
     const isAuthPage = ['/login', '/register', '/forgot-password', '/free-samples'].includes(currentPath);
     
-    // Show popup even if claimed before, but not if permanently dismissed or on auth pages
-    if (!isAuthPage && !popupDismissed) {
-      // Show popup after 3 seconds delay for better UX
-      const timer = setTimeout(() => {
-        setIsVisible(true);
-      }, 3000);
-
-      return () => clearTimeout(timer);
+    // Show popup immediately on every page load/refresh if not on auth pages
+    if (!isAuthPage) {
+      setIsVisible(true);
     }
   }, []);
 
@@ -52,9 +44,8 @@ export const useFreeSamplePopup = (): UseFreeSamplePopupReturn => {
 
   const hidePopup = () => {
     setIsVisible(false);
-    // Mark as shown and dismissed
-    localStorage.setItem(POPUP_SHOWN_KEY, 'true');
-    localStorage.setItem(POPUP_DISMISSED_KEY, 'true');
+    // Just hide the popup without marking as permanently dismissed
+    // This will allow it to show again on next refresh
     setHasBeenShown(true);
   };
 

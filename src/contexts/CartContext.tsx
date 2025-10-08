@@ -21,9 +21,12 @@ interface CartContextType {
   getCartTotal: () => number;
   getCartSubtotal: () => number;
   getDiscount: () => number;
+  getDiscountInfo: () => { type: string; percentage: number; amount: number };
   hasFreeSamples: () => boolean;
   hasPaidItems: () => boolean;
   isInCart: (productName: string) => boolean;
+  getOriginalPrice: (price: number) => number;
+  getDiscountedPrice: (price: number) => number;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -109,13 +112,28 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
   };
 
   const getDiscount = () => {
-    // Apply 10% discount if cart has both free samples and paid items
+    const paidItemsTotal = cartItems
+      .filter(item => !item.isSample)
+      .reduce((total, item) => total + (item.price * item.quantity), 0);
+    
+    // Check for first-order 50% discount
+    const hasFirstOrderDiscount = localStorage.getItem('firstOrderDiscountClaimed') === 'true';
+    const hasUsedFirstOrderDiscount = localStorage.getItem('firstOrderDiscountUsed') === 'true';
+    
+    // Get current user from localStorage to determine minimum order
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+    const minimumOrder = currentUser ? 100 : 200; // ₹100 for logged-in users, ₹200 for guests
+    
+    if (hasFirstOrderDiscount && !hasUsedFirstOrderDiscount && paidItemsTotal >= minimumOrder) {
+      // Apply 50% discount on first order (minimum varies by user status)
+      return paidItemsTotal * 0.50;
+    }
+    
+    // Apply 10% discount if cart has both free samples and paid items (fallback)
     if (hasFreeSamples() && hasPaidItems()) {
-      const paidItemsTotal = cartItems
-        .filter(item => !item.isSample)
-        .reduce((total, item) => total + (item.price * item.quantity), 0);
       return paidItemsTotal * 0.10; // 10% discount
     }
+    
     return 0;
   };
 
@@ -132,6 +150,57 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     );
   };
 
+  const getDiscountInfo = () => {
+    const paidItemsTotal = cartItems
+      .filter(item => !item.isSample)
+      .reduce((total, item) => total + (item.price * item.quantity), 0);
+    
+    const hasFirstOrderDiscount = localStorage.getItem('firstOrderDiscountClaimed') === 'true';
+    const hasUsedFirstOrderDiscount = localStorage.getItem('firstOrderDiscountUsed') === 'true';
+    
+    // Get current user from localStorage to determine minimum order
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+    const minimumOrder = currentUser ? 100 : 200; // ₹100 for logged-in users, ₹200 for guests
+    
+    if (hasFirstOrderDiscount && !hasUsedFirstOrderDiscount && paidItemsTotal >= minimumOrder) {
+      return {
+        type: 'First Order Discount',
+        percentage: 50,
+        amount: paidItemsTotal * 0.50
+      };
+    }
+    
+    if (hasFreeSamples() && hasPaidItems()) {
+      return {
+        type: 'Free Samples Discount',
+        percentage: 10,
+        amount: paidItemsTotal * 0.10
+      };
+    }
+    
+    return {
+      type: 'No Discount',
+      percentage: 0,
+      amount: 0
+    };
+  };
+
+  const getOriginalPrice = (price: number) => {
+    const discountInfo = getDiscountInfo();
+    if (discountInfo.type === 'First Order Discount') {
+      return price; // Show original price
+    }
+    return price;
+  };
+
+  const getDiscountedPrice = (price: number) => {
+    const discountInfo = getDiscountInfo();
+    if (discountInfo.type === 'First Order Discount') {
+      return price * 0.5; // 50% off
+    }
+    return price;
+  };
+
   const value: CartContextType = {
     cartItems,
     addToCart,
@@ -142,9 +211,12 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     getCartTotal,
     getCartSubtotal,
     getDiscount,
+    getDiscountInfo,
     hasFreeSamples,
     hasPaidItems,
-    isInCart
+    isInCart,
+    getOriginalPrice,
+    getDiscountedPrice
   };
 
   return (

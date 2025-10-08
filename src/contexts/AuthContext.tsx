@@ -12,6 +12,18 @@ import {
 } from 'firebase/auth';
 import { auth, googleProvider } from '../lib/firebase';
 
+// Address interface
+interface Address {
+  fullName: string;
+  phone: string;
+  addressLine1: string;
+  addressLine2?: string;
+  city: string;
+  state: string;
+  pincode: string;
+  landmark?: string;
+}
+
 // Define a local User type based on Firebase
 interface User {
   id: string;
@@ -48,6 +60,11 @@ interface AuthContextType {
   logout: () => Promise<void>;
   updateProfile: (data: Partial<Omit<UserProfile, 'id'>>) => Promise<{ success: boolean; error?: string }>;
   sendVerificationEmail: () => Promise<{ success: boolean; error?: string }>;
+  // Address management
+  savedAddress: Address | null;
+  saveAddress: (address: Address) => Promise<{ success: boolean; error?: string }>;
+  getSavedAddress: () => Address | null;
+  clearSavedAddress: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -95,8 +112,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [savedAddress, setSavedAddress] = useState<Address | null>(null);
 
   useEffect(() => {
+    // Production safety: Clear any unwanted demo data
+    if (window.location.hostname === 'www.shreeraagaswaadghar.com' || window.location.hostname === 'shreeraagaswaadghar.com') {
+      // Clear any demo profiles that might contain personal info
+      Object.keys(localStorage).forEach(key => {
+        if (key.includes('demo') || key.includes('test') || key.includes('mainan') || key.includes('manian')) {
+          localStorage.removeItem(key);
+        }
+      });
+      
+      // Clear discount flags for fresh visitors
+      localStorage.removeItem('hasDiscountEligibility');
+      localStorage.removeItem('freeSamplesClaimed');
+    }
+    
     // Set up Firebase auth state listener
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
@@ -149,9 +181,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           setProfile(newProfile);
           localStorage.setItem(`profile_${firebaseUser.uid}`, JSON.stringify(newProfile));
         }
+        
+        // Load saved address for this user
+        const savedAddressData = localStorage.getItem(`address_${firebaseUser.uid}`);
+        if (savedAddressData) {
+          try {
+            setSavedAddress(JSON.parse(savedAddressData));
+          } catch (error) {
+            console.error('Error loading saved address:', error);
+            setSavedAddress(null);
+          }
+        } else {
+          setSavedAddress(null);
+        }
       } else {
         setUser(null);
         setProfile(null);
+        setSavedAddress(null);
       }
       setLoading(false);
     });
@@ -319,6 +365,46 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  // Address management functions
+  const saveAddress = async (address: Address) => {
+    try {
+      if (!user) throw new Error('User not authenticated');
+      
+      // Save address to state
+      setSavedAddress(address);
+      
+      // Save address to localStorage
+      localStorage.setItem(`address_${user.id}`, JSON.stringify(address));
+      
+      return { success: true };
+    } catch (error: any) {
+      console.error('Save address error:', error.message);
+      return { success: false, error: error.message };
+    }
+  };
+
+  const getSavedAddress = (): Address | null => {
+    if (!user) return null;
+    
+    try {
+      const savedAddressData = localStorage.getItem(`address_${user.id}`);
+      if (savedAddressData) {
+        return JSON.parse(savedAddressData);
+      }
+      return null;
+    } catch (error) {
+      console.error('Error getting saved address:', error);
+      return null;
+    }
+  };
+
+  const clearSavedAddress = () => {
+    if (!user) return;
+    
+    setSavedAddress(null);
+    localStorage.removeItem(`address_${user.id}`);
+  };
+
   return (
     <AuthContext.Provider value={{ 
       user, 
@@ -329,9 +415,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       register, 
       logout, 
       updateProfile,
-      sendVerificationEmail
+      sendVerificationEmail,
+      savedAddress,
+      saveAddress,
+      getSavedAddress,
+      clearSavedAddress
     }}>
       {children}
     </AuthContext.Provider>
   );
 };
+
+// Export the Address interface so it can be used in other components
+export type { Address };

@@ -70,7 +70,13 @@ export const DemoProvider: React.FC<DemoProviderProps> = ({ children }) => {
   }, []);
 
   const loadUserData = async () => {
-    // Load user from localStorage if available
+    // Skip demo user loading on production domain to prevent showing personal info
+    if (window.location.hostname === 'www.shreeraagaswaadghar.com' || window.location.hostname === 'shreeraagaswaadghar.com') {
+      // Don't load demo user on production
+      return;
+    }
+    
+    // Load user from localStorage if available (only for local/dev)
     const savedUser = localStorage.getItem('demo_user');
     if (savedUser) {
       setUser(JSON.parse(savedUser));

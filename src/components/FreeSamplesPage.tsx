@@ -14,14 +14,14 @@ const FreeSamplesPage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { addToCart } = useCart();
-  const { user, profile, updateProfile } = useAuth();
+  const { user, profile, updateProfile, loading: authLoading } = useAuth();
   const { addTempSamples } = useTempSamples();
   const fromOffer = location.state?.fromOffer || false;
 
   // Check if user is logged in first
   useEffect(() => {
-    if (!user) {
-      // User not logged in - redirect to login
+    if (!authLoading && !user) {
+      // User not logged in - redirect to login (only if not loading)
       navigate('/login', { 
         state: { 
           returnTo: '/free-samples',
@@ -40,7 +40,7 @@ const FreeSamplesPage: React.FC = () => {
         } 
       });
     }
-  }, [user, profile, navigate, fromOffer]);
+  }, [user, profile, navigate, fromOffer, authLoading]);
 
   // Comprehensive image mapping for all categories using available images
   const productImageMap: { pattern: RegExp; src: string; category?: string }[] = [
@@ -63,19 +63,14 @@ const FreeSamplesPage: React.FC = () => {
     { pattern: /^sambar.*powder/i, src: '/Items/Sambar powder.jpeg', category: 'Powder' },
     { pattern: /^rasam.*powder/i, src: '/Items/Rasam Powder.jpeg', category: 'Powder' },
     { pattern: /^poondu.*idly.*powder|^poondu.*idli.*powder/i, src: '/Items/Poondu Idli Powder.jpeg', category: 'Powder' },
-    { pattern: /^ellu.*idli.*powder/i, src: '/Items/Idli Powder.jpeg', category: 'Powder' },
-    { pattern: /^andra.*spl.*paruppu.*powder/i, src: '/Items/Sambar powder.jpeg', category: 'Powder' }, // Using similar image
-    { pattern: /^moringa.*leaf.*powder/i, src: '/Items/Turmeric Powder.jpeg', category: 'Powder' }, // Using similar image
-    { pattern: /^curry.*leaves.*powder/i, src: '/Items/Idli Powder.jpeg', category: 'Powder' }, // Using similar image
-    { pattern: /^red.*chilli.*powder/i, src: '/Items/Sambar powder.jpeg', category: 'Powder' }, // Using similar image
+    { pattern: /^andra.*spl.*paruppu.*powder|andhra.*spcl.*powder/i, src: '/Items/andhra spcl.jpg', category: 'Powder' },
+    { pattern: /^moringa.*leaf.*powder/i, src: '/Items/moringa leaf powder.jpg', category: 'Powder' },
+    { pattern: /^curry.*leaves.*powder|curry.*leaf.*powder/i, src: '/Items/curry leaf powder.jpg', category: 'Powder' },
     
-    // Appalam category - using available images as fallbacks
-    { pattern: /^ulundhu.*appalam/i, src: '/Items/Idli Powder.jpeg', category: 'Appalam' }, // Using similar image
-    { pattern: /^rice.*appalam/i, src: '/Items/Turmeric Powder.jpeg', category: 'Appalam' }, // Using similar image
-    { pattern: /^kizhangu.*appalam/i, src: '/Items/Sambar powder.jpeg', category: 'Appalam' }, // Using similar image
     
-    // Coffee category - using available image as fallback
-    { pattern: /^coffee.*powder/i, src: '/Items/Idli Powder.jpeg', category: 'Coffee' }, // Using similar image
+    // Coffee category
+    { pattern: /^coffee.*powder/i, src: '/Items/coffee powder.jpg', category: 'Coffee' },
+    { pattern: /^coffee.*large/i, src: '/Items/Coffee large.jpg', category: 'Coffee' },
   ];
 
   // Product descriptions mapping
@@ -156,7 +151,7 @@ const FreeSamplesPage: React.FC = () => {
       items: [
         { name: 'Puliodharai mix', category: 'Mix' },
         { name: 'Vathakkuzhambu mix', category: 'Mix' },
-        { name: 'Puliyokuzhambu powder', category: 'Mix' },
+        { name: 'Pulikuzhambu powder', category: 'Mix' },
         { name: 'Sambar powder', category: 'Powder' },
         { name: 'Rasam powder', category: 'Powder' }
       ]
@@ -317,6 +312,18 @@ const FreeSamplesPage: React.FC = () => {
     // Navigate to categories page (not home page)
     navigate('/categories');
   };
+
+  // Show loading screen while authentication is being checked
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-slate-100 to-blue-100 py-8 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading free samples...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-100 to-blue-100 py-8">

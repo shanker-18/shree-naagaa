@@ -20,7 +20,7 @@ const OrderSummary: React.FC = () => {
   
   const [loading, setLoading] = useState(false);
   const [orderPlaced, setOrderPlaced] = useState(false);
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const { updateOrderStatus, createOrder } = useDemoContext();
 
   if (!orderData) {
@@ -146,6 +146,23 @@ const OrderSummary: React.FC = () => {
         }
         
         console.log('🎉 Order placed successfully, setting orderPlaced to true');
+        
+        // Mark first order as completed if user claimed the discount
+        const hasClaimedFirstOrderDiscount = localStorage.getItem('firstOrderDiscountClaimed') === 'true';
+        const userId = user?.id || orderData.user_id;
+        
+        if (hasClaimedFirstOrderDiscount) {
+          if (userId) {
+            // For logged-in users, mark user-specific completion
+            localStorage.setItem(`firstOrderCompleted_${userId}`, 'true');
+            console.log('🏆 First order discount used - marking as completed for user:', userId);
+          } else {
+            // For guest users, mark global completion
+            localStorage.setItem('firstOrderDiscountUsed', 'true');
+            console.log('🏆 First order discount used - marking as completed for guest user');
+          }
+        }
+        
         setOrderPlaced(true);
       } else {
         console.error('Error creating order:', result.message);
@@ -318,7 +335,7 @@ const OrderSummary: React.FC = () => {
                   </div>
                   {orderData.discount_amount > 0 && (
                     <div className="flex justify-between text-green-600 text-lg">
-                      <span>Discount (1%):</span>
+                      <span>Discount:</span>
                       <span>-₹{orderData.discount_amount}</span>
                     </div>
                   )}

@@ -164,6 +164,11 @@ export async function createOrder(orderData: OrderData) {
           markOfferAsUsed(orderData.user_id);
         }
         
+        // Check if first-order discount was used and mark it as used
+        if (orderData.user_id && localStorage.getItem('firstOrderDiscountClaimed') === 'true') {
+          markFirstOrderDiscountAsUsed(orderData.user_id);
+        }
+        
         // Store the order in localStorage as a backup
         storeOrderInLocalStorage({
           ...orderData,
@@ -262,6 +267,26 @@ function markOfferAsUsed(userId: string) {
     }
   } catch (error) {
     console.error('Failed to mark offer as used:', error);
+  }
+}
+
+// Helper function to mark first-order discount as used
+function markFirstOrderDiscountAsUsed(userId: string) {
+  try {
+    const savedProfile = localStorage.getItem(`profile_${userId}`);
+    if (savedProfile) {
+      const profile = JSON.parse(savedProfile);
+      profile.hasUsedOffer = true;
+      profile.isFirstTimeOrder = false; // No longer first-time customer
+      localStorage.setItem(`profile_${userId}`, JSON.stringify(profile));
+    }
+    
+    // Mark discount as used in localStorage
+    localStorage.setItem('firstOrderDiscountUsed', 'true');
+    localStorage.setItem(`firstOrderDiscountUsed_${userId}`, 'true');
+    console.log('First-order discount marked as used for user:', userId);
+  } catch (error) {
+    console.error('Failed to mark first-order discount as used:', error);
   }
 }
 

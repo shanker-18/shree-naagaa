@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Route, Routes } from 'react-router-dom';
 import Homepage from './components/Homepage';
 import CategoryPage from './components/CategoryPage';
@@ -11,27 +11,26 @@ import OrderSummary from './components/OrderSummary';
 import ProductDetails from './components/ProductDetails';
 import EmailTest from './components/EmailTest';
 import Profile from './components/Profile';
-import FreeSamplesPage from './components/FreeSamplesPage';
 import Navbar from './components/Navbar';
-import FreeSamplePopup from './components/FreeSamplePopup';
+import FirstOrderDiscountPopup from './components/FirstOrderDiscountPopup';
 import { AuthProvider } from './contexts/AuthContext';
 import { CartProvider } from './contexts/CartContext';
 import { TempSamplesProvider } from './contexts/TempSamplesContext';
-import { useFreeSamplePopup } from './hooks/useFreeSamplePopup';
+import { useFirstOrderPopup } from './hooks/useFirstOrderPopup';
+import DiscountDebugPage from './components/DiscountDebugPage';
 
 // Inner component to use hooks after providers are initialized
 function AppContent() {
-  const { isVisible, hidePopup, onClaim } = useFreeSamplePopup();
+  const { isVisible, hidePopup, onClaim } = useFirstOrderPopup();
 
   return (
     <>
       <Navbar />
-      <div className="pt-16">
+      <div className="pt-14 sm:pt-16">
         <Routes>
           <Route path="/" element={<Homepage />} />
           <Route path="/categories" element={<Categories />} />
           <Route path="/category/:slug" element={<CategoryPage />} />
-          <Route path="/free-samples" element={<FreeSamplesPage />} />
           <Route path="/cart" element={<CartPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
@@ -40,12 +39,13 @@ function AppContent() {
           <Route path="/product-details" element={<ProductDetails />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/email-test" element={<EmailTest />} />
+          <Route path="/debug/discount" element={<DiscountDebugPage />} />
           {/* EmailJS routes removed */}
         </Routes>
       </div>
       
-      {/* Free Sample Popup */}
-      <FreeSamplePopup 
+      {/* First Order Discount Popup */}
+      <FirstOrderDiscountPopup 
         isVisible={isVisible}
         onClose={hidePopup}
         onClaim={onClaim}
@@ -55,6 +55,34 @@ function AppContent() {
 }
 
 function App() {
+  useEffect(() => {
+    // Clean up demo data on production to ensure fresh start for visitors
+    if (window.location.hostname === 'www.shreeraagaswaadghar.com' || window.location.hostname === 'shreeraagaswaadghar.com') {
+      // Clear demo/test user data that might show personal info
+      const keysToRemove = [
+        'demo_user',
+        'currentUser',
+        'testUser',
+        'tempUser',
+        'hasDiscountEligibility', // Clear the discount eligibility flag that's causing issues
+        'freeSamplesClaimed'
+      ];
+      
+      keysToRemove.forEach(key => {
+        localStorage.removeItem(key);
+      });
+      
+      // Also clear any profile data that might contain personal info
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('profile_demo') || key.startsWith('profile_test')) {
+          localStorage.removeItem(key);
+        }
+      });
+      
+      console.log('🧹 Production cleanup completed - cleared demo data and discount flags');
+    }
+  }, []);
+
   return (
     <AuthProvider>
       <CartProvider>

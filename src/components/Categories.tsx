@@ -15,7 +15,10 @@ const productImageMap: { pattern: RegExp; src: string; category?: string }[] = [
   { pattern: /turmeric|manjal/i, src: '/Items/Turmeric Powder.jpeg', category: 'Powder' },
   { pattern: /idli|idly/i, src: '/Items/Idli Powder.jpeg', category: 'Powder' },
   { pattern: /rasam/i, src: '/Items/Rasam Powder.jpeg', category: 'Powder' },
-  { pattern: /puliyo?kuzhambu|puli\s*kuzhambu/i, src: '/Items/Puliyokuzhambu Powder.jpeg', category: 'Powder' },
+  { pattern: /pulikuzhambu.*powder/i, src: '/Items/Puliyokuzhambu Powder.jpg', category: 'Powder' },
+  { pattern: /andra.*spl.*paruppu.*powder|andhra.*spcl.*powder/i, src: '/Items/andhra spcl.jpg', category: 'Powder' },
+  { pattern: /moringa.*leaf.*powder/i, src: '/Items/moringa leaf powder.jpg', category: 'Powder' },
+  { pattern: /curry.*leaves.*powder|curry.*leaf.*powder/i, src: '/Items/curry leaf powder.jpg', category: 'Powder' },
   
   // Mix & Pickle category
   { pattern: /puliyotharai|tamarind.*mix/i, src: '/Items/Puliyotharai Mix.jpeg', category: 'Mix & Pickle' },
@@ -25,6 +28,10 @@ const productImageMap: { pattern: RegExp; src: string; category?: string }[] = [
   { pattern: /jadhikkai|jathikkai|nutmeg/i, src: '/Items/Jadhikkai Pickle.jpeg', category: 'Mix & Pickle' },
   { pattern: /mudakatthan|mudakkathan/i, src: '/Items/Mudakatthan Pickle.jpeg', category: 'Mix & Pickle' },
   { pattern: /kara.*narthangai.*pickle/i, src: '/Items/Kara narthangai pickle.jpeg', category: 'Mix & Pickle' },
+  
+  // Coffee category
+  { pattern: /coffee.*powder/i, src: '/Items/coffee powder.jpg', category: 'Coffee' },
+  { pattern: /coffee.*large/i, src: '/Items/Coffee large.jpg', category: 'Coffee' },
 ];
 
 // Function to get image for any product across all categories

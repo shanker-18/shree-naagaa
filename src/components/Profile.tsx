@@ -7,7 +7,7 @@ import { sendEmailVerification } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 
 const Profile: React.FC = () => {
-  const { profile, updateProfile, logout } = useAuth();
+  const { profile, updateProfile, logout, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: '',
@@ -24,9 +24,14 @@ const Profile: React.FC = () => {
   const [orders, setOrders] = useState<any[]>([]);
 
   useEffect(() => {
-    // Check if user is authenticated
-    if (!profile) {
+    // Check if user is authenticated (only redirect if not loading)
+    if (!authLoading && !profile) {
       navigate('/login');
+      return;
+    }
+
+    // Only proceed if profile exists
+    if (!profile) {
       return;
     }
 
@@ -67,7 +72,7 @@ const Profile: React.FC = () => {
         ]
       }
     ]);
-  }, [profile, navigate]);
+  }, [profile, navigate, authLoading]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -120,6 +125,30 @@ const Profile: React.FC = () => {
       setError(err.message || 'Failed to send verification email');
     }
   };
+
+  // Show loading screen while authentication is being checked
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading your profile...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render if profile is not loaded yet
+  if (!profile) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading your profile...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">

@@ -1,4 +1,4 @@
-import { Package, Heart, Crown, Gift, Coffee } from 'lucide-react';
+import { Package, Crown, Gift, Coffee } from 'lucide-react';
 
 export interface Category {
   title: string;
@@ -44,7 +44,7 @@ export const categories: Category[] = [
       'Rasam Powder: Prepared with tomato in dhal stew. Used in rasam to make it aromatic and tasty.',
       'Idli Powder: Traditional South Indian idli podi made with authentic spices and ingredients.',
       'Poondu Idli Powder: Special garlic-infused idli powder with medicinal properties and rich taste.',
-      'Puliyokuzhambu Powder: Traditional tamarind-based curry powder for authentic South Indian flavors.',
+      'Pulikuzhambu Powder: Traditional tamarind-based curry powder for authentic South Indian flavors.',
       'Ellu Idli Powder: Prepared with Gingelly oil and garlic. Eaten as a side dish with Idly or Dosa.',
       'Andra Spl Paruppu Powder: Special Andhra-style lentil powder blend for traditional recipes.',
       'Moringa Leaf Powder: Nutrient-rich powder made from dried moringa leaves, packed with vitamins and minerals.',
